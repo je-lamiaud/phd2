@@ -55,6 +55,7 @@
     //#define GUIDE_VOYAGER
     //#define GUIDE_NEB
     #define GUIDE_EQMAC
+    #define GUIDE_EQTRACK
 
 #elif defined (__linux__) || defined (__FreeBSD__)
 
@@ -73,6 +74,7 @@
 #include "scope_voyager.h"
 #include "scope_equinox.h"
 #include "scope_eqmac.h"
+#include "scope_eqtrack.h"
 #include "scope_GC_USBST4.h"
 #include "scope_indi.h"
 #include "scope_manual_pointing.h"

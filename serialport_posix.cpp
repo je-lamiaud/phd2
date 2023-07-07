@@ -139,6 +139,7 @@ bool SerialPortPosix::Connect(const wxString& portName, int baud, int dataBits, 
 
         unsigned int speed = B0;
         switch (baud) {
+        case 1200:   speed =   B1200; break;
         case 9600:   speed =   B9600; break;
         case 19200:  speed =  B19200; break;
         case 38400:  speed =  B38400; break;
@@ -246,7 +247,7 @@ bool SerialPortPosix::Send(const unsigned char *pData, unsigned int count)
 
     try
     {
-        Debug.AddBytes("SerialPortPosix::Send", pData, count);
+//        Debug.AddBytes("SerialPortPosix::Send", pData, count);
 
         size_t rem = count;
         while (rem > 0)

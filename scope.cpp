@@ -356,6 +356,9 @@ wxArrayString Scope::MountList()
     ScopeList.Add(_T("Equinox 6"));
     ScopeList.Add(_T("EQMAC"));
 #endif
+#ifdef GUIDE_EQTRACK
+    ScopeList.Add(_T("EQ Track"));
+#endif
 #ifdef GUIDE_GCUSBST4
     ScopeList.Add(_T("GC USB ST4"));
 #endif
@@ -451,6 +454,10 @@ Scope *Scope::Factory(const wxString& choice)
 #ifdef GUIDE_EQMAC
         else if (choice.Contains(_T("EQMAC")))
             pReturn = new ScopeEQMac();
+#endif
+#ifdef GUIDE_EQTRACK
+        else if (choice.Contains(_T("EQ Track")))
+            pReturn = new ScopeEQTrack();
 #endif
 #ifdef GUIDE_GCUSBST4
         else if (choice.Contains(_T("GC USB ST4")))

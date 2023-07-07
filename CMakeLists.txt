@@ -280,6 +280,8 @@ set(scopes_SRC
   ${phd_src_dir}/scope_eqmac.h
   ${phd_src_dir}/scope_equinox.cpp
   ${phd_src_dir}/scope_equinox.h
+  ${phd_src_dir}/scope_eqtrack.cpp
+  ${phd_src_dir}/scope_eqtrack.h
   ${phd_src_dir}/scope_GC_USBST4.cpp
   ${phd_src_dir}/scope_GC_USBST4.h
   ${phd_src_dir}/scope_gpint.cpp
