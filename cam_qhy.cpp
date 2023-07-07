@@ -503,18 +503,15 @@ bool Camera_QHY::Capture(int duration, usImage& img, int options, const wxRect& 
         }
     }
 
-    if (duration != m_curExposure)
+    ret = SetQHYCCDParam(m_camhandle, CONTROL_EXPOSURE, duration * 1000.0); // QHY duration is usec
+    if (ret == QHYCCD_SUCCESS)
     {
-        ret = SetQHYCCDParam(m_camhandle, CONTROL_EXPOSURE, duration * 1000.0); // QHY duration is usec
-        if (ret == QHYCCD_SUCCESS)
-        {
-            m_curExposure = duration;
-        }
-        else
-        {
-            Debug.Write(wxString::Format("QHY set exposure ret %d\n", (int)ret));
-            pFrame->Alert(_("Failed to set camera exposure"));
-        }
+        m_curExposure = duration;
+    }
+    else
+    {
+        Debug.Write(wxString::Format("QHY set exposure ret %d\n", (int)ret));
+        pFrame->Alert(_("Failed to set camera exposure"));
     }
 
     if (GuideCameraGain != m_curGain)
@@ -534,6 +531,7 @@ bool Camera_QHY::Capture(int duration, usImage& img, int options, const wxRect& 
         }
     }
 
+    wxStopWatch expWatch;
     ret = ExpQHYCCDSingleFrame(m_camhandle);
     if (ret == QHYCCD_ERROR)
     {
@@ -541,6 +539,10 @@ bool Camera_QHY::Capture(int duration, usImage& img, int options, const wxRect& 
         DisconnectWithAlert(_("QHY exposure failed"), NO_RECONNECT);
         return true;
     }
+#ifdef debug
+    Debug.Write(wxString::Format("QHY exp single frame started\n"));
+#endif
+
 #ifdef CAN_STOP_CAPTURE
     if (WorkerThread::InterruptRequested())
     {
@@ -548,15 +550,30 @@ bool Camera_QHY::Capture(int duration, usImage& img, int options, const wxRect& 
         return true;
     }
 #endif
-    if (ret == QHYCCD_SUCCESS)
+    // Wait until the expected exposure end
+    WorkerThread::MilliSleep(duration - expWatch.Time(), WorkerThread::INT_ANY);
+#ifdef debug
+    Debug.Write(wxString::Format("QHY exp single frame time elapsed\n"));
+#endif
+
+    // Make sure exposure is really finished
+    for (;;)
     {
-        Debug.Write(wxString::Format("QHY: 200ms delay needed\n"));
-        WorkerThread::MilliSleep(200);
+#ifdef CAN_STOP_CAPTURE
+        if (WorkerThread::InterruptRequested())
+        {
+            StopCapture(m_camhandle);
+            return true;
+        }
+#endif
+        int remaining = GetQHYCCDExposureRemaining(m_camhandle);
+        if (remaining <= 100)
+            break;
+        WorkerThread::MilliSleep(2, WorkerThread::INT_ANY);
     }
-    if (ret == QHYCCD_READ_DIRECTLY)
-    {
-        //Debug.Write("QHYCCD_READ_DIRECTLY\n");
-    }
+#ifdef debug
+    Debug.Write(wxString::Format("QHY exp single frame ready for reading\n"));
+#endif
 
     uint32_t w, h, bpp, channels;
     ret = GetQHYCCDSingleFrame(m_camhandle, &w, &h, &bpp, &channels, RawBuffer);
