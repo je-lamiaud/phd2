@@ -503,15 +503,16 @@ if(WIN32)
 else()
   if(APPLE)
     # make sure to pick up the macos curl, not the mapcports curl in /opt/local/lib
-    find_library(CURL_LIBRARIES
-                 NAMES curl
-		 PATHS /usr/lib
-		 NO_DEFAULT_PATH)
-    if(NOT CURL_LIBRARIES)
-      message(FATAL_ERROR "libcurl not found")
-    endif()
-    set(CURL_FOUND True)
-    set(CURL_INCLUDE_DIRS /usr/include)
+    find_library(CURL_LIBRARIES curl)
+#    find_library(CURL_LIBRARIES
+#                 NAMES curl
+#		 PATHS /usr/lib
+#		 NO_DEFAULT_PATH)
+#    if(NOT CURL_LIBRARIES)
+#      message(FATAL_ERROR "libcurl not found")
+#    endif()
+#    set(CURL_FOUND True)
+#    set(CURL_INCLUDE_DIRS /usr/include)
   else()
     find_package(CURL REQUIRED)
   endif()
@@ -670,13 +671,14 @@ else()
   else()
     if(APPLE)
       # make sure to pick up the macos libz, not the mapcports libz in /opt/local/lib
-      find_library(ZLIB_LIBRARIES
-                   NAMES z
-		   PATHS /usr/lib
-		   NO_DEFAULT_PATH)
-      if(NOT ZLIB_LIBRARIES)
-        message(FATAL_ERROR "libz not found")
-      endif()
+      find_library(ZLIB_LIBRARIES z)
+#      find_library(ZLIB_LIBRARIES
+#                   NAMES z
+#		   PATHS /usr/lib
+#		   NO_DEFAULT_PATH)
+#      if(NOT ZLIB_LIBRARIES)
+#        message(FATAL_ERROR "libz not found")
+#      endif()
     else()
       find_package(ZLIB REQUIRED)
     endif()

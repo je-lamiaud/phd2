@@ -1002,8 +1002,8 @@ GuideCamera *ZWOCameraFactory::MakeZWOCamera()
 
 #if defined(__APPLE__)
 // workaround link error for missing symbol ___exp10 from libASICamera2.a
-#include <math.h>
-extern "C" double __exp10(double x) { return pow(10.0, x); }
+//#include <math.h>
+//extern "C" double __exp10(double x) { return pow(10.0, x); }
 #endif
 
 #endif // ZWO_ASI
