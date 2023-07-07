@@ -110,7 +110,7 @@ ScopePointingDlg::ScopePointingDlg(wxWindow* parent, wxWindowID id, const wxStri
     bSizer1->Add(sbSizer2, 0, wxALL | wxEXPAND, 5);
 
     m_raHr = 0;
-    if (pFrame->pDriftTool)
+    if (pFrame->pDriftTool || pFrame->pPolarDriftTool)
     {
         wxStaticBoxSizer* sbSizer3;
         sbSizer3 = new wxStaticBoxSizer(new wxStaticBox(this, wxID_ANY, _("Drift Alignment")), wxVERTICAL);

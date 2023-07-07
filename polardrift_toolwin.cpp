@@ -229,6 +229,7 @@ wxCAPTION | wxCLOSE_BOX | wxMINIMIZE_BOX | wxSYSTEM_MENU | wxTAB_TRAVERSAL | wxF
     m_statusBar = CreateStatusBar(1, wxST_SIZEGRIP, wxID_ANY);
     const int sbw[3] = { -2, -1, -1 };
     m_statusBar->SetFieldsCount(3, sbw);
+    m_location_prompt_done = false;
 
     Layout();
     topSizer->Fit(this);
@@ -299,6 +300,16 @@ void PolarDriftToolWin::OnStart(wxCommandEvent& evt)
     {
         SetStatusText(_("Please select a star"));
         return;
+    }
+    if (!m_location_prompt_done)
+    {
+        if (pPointingSource && pPointingSource->IsConnected())
+        {
+            bool error = pPointingSource->PreparePositionInteractive();
+            if (error)
+                return;
+            m_location_prompt_done = true;
+        }
     }
     if (pMount)
     {

@@ -77,6 +77,7 @@ struct PolarDriftToolWin : public wxFrame
 
     int m_hemi;         // Hemisphere of the observer
     int m_mirror;       // -1 if the image is mirrored e.g. due to OAG
+    bool m_location_prompt_done;
 
     bool m_drifting;        // Indicates that alignment points are being collected
     double m_t0;
