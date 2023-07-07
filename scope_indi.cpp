@@ -85,8 +85,7 @@ private:
 
     wxMutex sync_lock;
     wxCondition sync_cond;
-    bool guide_active;
-    GuideAxis guide_active_axis;
+    bool guide_active[2];
 
     long     INDIport;
     wxString INDIhost;
@@ -124,6 +123,7 @@ public:
 
     MOVE_RESULT Guide(GUIDE_DIRECTION direction, int duration) override;
     bool HasNonGuiMove() override;
+    virtual void WaitMoveCompletion() override;
 
     bool   CanPulseGuide() override { return (pulseGuideNS_prop && pulseGuideEW_prop); }
     bool   CanReportPosition() override { return coord_prop ? true : false; }
@@ -179,7 +179,8 @@ void ScopeINDI::ClearStatus()
     // reset connection status
     m_ready = false;
     eod_coord = false;
-    guide_active = false;
+    guide_active[GUIDE_RA] = false;
+    guide_active[GUIDE_DEC] = false;
     sync_cond.Broadcast(); // just in case worker thread was blocked waiting for guide pulse to complete
 }
 
@@ -488,16 +489,25 @@ void ScopeINDI::newNumber(INumberVectorProperty *nvp)
         bool notify = false;
         {
             wxMutexLocker lck(sync_lock);
-            if (guide_active && nvp->s != IPS_BUSY &&
-                ((guide_active_axis == GUIDE_RA && nvp == pulseGuideEW_prop) || (guide_active_axis == GUIDE_DEC && nvp == pulseGuideNS_prop)))
+            if (nvp == pulseGuideEW_prop)
             {
-                guide_active = false;
-                notify = true;
+                if (nvp->s == IPS_BUSY)
+                    guide_active[GUIDE_RA] = true;
+                else if (guide_active[GUIDE_RA])
+                {
+                    guide_active[GUIDE_RA] = false;
+                    notify = !guide_active[GUIDE_DEC];
+                }
             }
-            else if (!guide_active && nvp->s == IPS_BUSY)
+            if (nvp == pulseGuideNS_prop)
             {
-                guide_active = true;
-                guide_active_axis = nvp == pulseGuideEW_prop ? GUIDE_RA : GUIDE_DEC;
+                if (nvp->s == IPS_BUSY)
+                    guide_active[GUIDE_DEC] = true;
+                else if (guide_active[GUIDE_DEC])
+                {
+                    guide_active[GUIDE_DEC] = false;
+                    notify = !guide_active[GUIDE_RA];
+            }
             }
         }
         if (notify)
@@ -613,14 +623,18 @@ Mount::MOVE_RESULT ScopeINDI::Guide(GUIDE_DIRECTION direction, int duration)
 {
     if (pulseGuideNS_prop && pulseGuideEW_prop)
     {
+        int axis;
         if (INDIConfig::Verbose())
             Debug.Write(wxString::Format("INDI Mount: timed pulse dir %d dur %d ms\n", direction, duration));
 
         switch (direction) {
         case EAST:
         case WEST:
+            axis = GUIDE_RA;
+            break;
         case NORTH:
         case SOUTH:
+            axis = GUIDE_DEC;
             break;
         default:
             Debug.Write("INDI Mount error ScopeINDI::Guide NONE\n");
@@ -632,16 +646,14 @@ Mount::MOVE_RESULT ScopeINDI::Guide(GUIDE_DIRECTION direction, int duration)
         {
             wxMutexLocker lck(sync_lock);
 
-            if (guide_active)
+            if (guide_active[axis])
             {
                 // todo: try to abort it?
                 Debug.Write("Cannot guide with guide pulse in progress!\n");
                 return MOVE_ERROR;
             }
 
-            guide_active = true;
-            guide_active_axis = direction == EAST || direction == WEST ? GUIDE_RA : GUIDE_DEC;
-
+            guide_active[axis] = true;
         } // lock scope
 
         // despite what is said in INDI standard properties description, every telescope driver expect the guided time in msec.
@@ -669,25 +681,6 @@ Mount::MOVE_RESULT ScopeINDI::Guide(GUIDE_DIRECTION direction, int duration)
         default:
             break;
         }
-
-        if (INDIConfig::Verbose())
-            Debug.Write("INDI Mount: wait for move complete\n");
-
-        { // lock scope
-            wxMutexLocker lck(sync_lock);
-            while (guide_active)
-            {
-                sync_cond.WaitTimeout(100);
-                if (WorkerThread::InterruptRequested())
-                {
-                    Debug.Write("interrupt requested\n");
-                    return MOVE_ERROR;
-                }
-            }
-        } // lock scope
-
-        if (INDIConfig::Verbose())
-            Debug.Write("INDI Mount: move completed\n");
 
         return MOVE_OK;
     }
@@ -750,6 +743,32 @@ Mount::MOVE_RESULT ScopeINDI::Guide(GUIDE_DIRECTION direction, int duration)
         Debug.Write(wxString::Format("INDI Mount: pulse guide properties unavailable!\n"));
         return MOVE_ERROR;
     }
+}
+
+void ScopeINDI::WaitMoveCompletion()
+{
+    if (pulseGuideNS_prop && pulseGuideEW_prop)
+    {
+        if (INDIConfig::Verbose())
+            Debug.Write("INDI Mount: wait for move complete\n");
+
+        { // lock scope
+            wxMutexLocker lck(sync_lock);
+            while (guide_active[GUIDE_RA] || guide_active[GUIDE_DEC])
+            {
+                sync_cond.WaitTimeout(100);
+                if (WorkerThread::InterruptRequested())
+                {
+                    Debug.Write("interrupt requested\n");
+                    return;
+                }
+            }
+        } // lock scope
+
+        if (INDIConfig::Verbose())
+            Debug.Write("INDI Mount: move completed\n");
+    }
+    // Otherwise, wait was done in Guide
 }
 
 double ScopeINDI::GetDeclinationRadians()
