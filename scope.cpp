@@ -676,7 +676,7 @@ void Scope::AlertLimitReached(int duration, GuideAxis axis)
     }
 }
 
-Mount::MOVE_RESULT Scope::MoveAxis(GUIDE_DIRECTION direction, int duration, unsigned int moveOptions, MoveResultInfo *moveResult)
+Mount::MOVE_RESULT Scope::MoveAxis(GUIDE_DIRECTION direction, int duration, unsigned int moveOptions, MoveResultInfo *moveResult, bool blocking)
 {
     MOVE_RESULT result = MOVE_OK;
     bool limitReached = false;
@@ -769,6 +769,8 @@ Mount::MOVE_RESULT Scope::MoveAxis(GUIDE_DIRECTION direction, int duration, unsi
             {
                 throw ERROR_INFO("guide failed");
             }
+            if (blocking)
+                WaitMoveCompletion();
         }
     }
     catch (const wxString& Msg)

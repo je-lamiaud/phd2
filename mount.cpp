@@ -1020,7 +1020,7 @@ Mount::MOVE_RESULT Mount::MoveOffset(GuiderOffset *ofs, unsigned int moveOptions
 
         int requestedXAmount = ROUND(fabs(xDistance / m_xRate));
         MoveResultInfo xMoveResult;
-        result = MoveAxis(xDirection, requestedXAmount, moveOptions, &xMoveResult);
+        result = MoveAxis(xDirection, requestedXAmount, moveOptions, &xMoveResult, false);
 
         MoveResultInfo yMoveResult;
         if (result != MOVE_ERROR_SLEWING && result != MOVE_ERROR_AO_LIMIT_REACHED)
@@ -1030,8 +1030,10 @@ Mount::MOVE_RESULT Mount::MoveOffset(GuiderOffset *ofs, unsigned int moveOptions
             if (m_backlashComp)
                 m_backlashComp->ApplyBacklashComp(moveOptions, yDistance, &requestedYAmount);
 
-            result = MoveAxis(yDirection, requestedYAmount, moveOptions, &yMoveResult);
+            result = MoveAxis(yDirection, requestedYAmount, moveOptions, &yMoveResult, false);
         }
+
+        WaitMoveCompletion();
 
         // Record the info about the guide step. The info will be picked up back in the main UI thread.
         // We don't want to do anything with the info here in the worker thread since UI operations are
@@ -1415,6 +1417,11 @@ bool Mount::SynchronousOnly()
 {
     return false;
 }
+
+void Mount::WaitMoveCompletion()
+{
+}
+
 
 bool Mount::HasSetupDialog() const
 {

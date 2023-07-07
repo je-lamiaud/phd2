@@ -212,7 +212,7 @@ public:
     // by a subclass
 private:
     MOVE_RESULT MoveOffset(GuiderOffset *guiderOffset, unsigned int moveOptions) final;
-    MOVE_RESULT MoveAxis(GUIDE_DIRECTION direction, int amount, unsigned int moveOptions, MoveResultInfo *moveResultInfo) final;
+    MOVE_RESULT MoveAxis(GUIDE_DIRECTION direction, int amount, unsigned int moveOptions, MoveResultInfo *moveResultInfo, bool blocking = true) final;
     MOVE_RESULT MoveAxis(GUIDE_DIRECTION direction, int steps, unsigned int moveOptions) final;
     int CalibrationMoveSize() override;
     int CalibrationTotDistance() override;

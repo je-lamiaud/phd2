@@ -889,7 +889,7 @@ int StepGuider::CalibrationTotDistance()
     return AO_CALIBRATION_PIXELS_NEEDED;
 }
 
-Mount::MOVE_RESULT StepGuider::MoveAxis(GUIDE_DIRECTION direction, int steps, unsigned int moveOptions, MoveResultInfo *moveResult)
+Mount::MOVE_RESULT StepGuider::MoveAxis(GUIDE_DIRECTION direction, int steps, unsigned int moveOptions, MoveResultInfo *moveResult, bool blocking)
 {
     MOVE_RESULT result = MOVE_OK;
     bool limitReached = false;
@@ -989,6 +989,8 @@ Mount::MOVE_RESULT StepGuider::MoveAxis(GUIDE_DIRECTION direction, int steps, un
 
     if (moveResult)
     {
+        if (blocking)
+            WaitMoveCompletion();
         moveResult->amountMoved = steps;
         moveResult->limited = limitReached;
     }

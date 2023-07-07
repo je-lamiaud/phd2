@@ -305,7 +305,7 @@ public:
     // pure virtual functions -- these MUST be overridden by a subclass
 public:
     // move the requested direction, return the actual amount of the move
-    virtual MOVE_RESULT MoveAxis(GUIDE_DIRECTION direction, int amount, unsigned int moveOptions, MoveResultInfo *moveResultInfo) = 0;
+    virtual MOVE_RESULT MoveAxis(GUIDE_DIRECTION direction, int amount, unsigned int moveOptions, MoveResultInfo *moveResultInfo, bool blocking = true) = 0;
     virtual MOVE_RESULT MoveAxis(GUIDE_DIRECTION direction, int duration, unsigned int moveOptions) = 0;
     virtual int CalibrationMoveSize() = 0;
     virtual int CalibrationTotDistance() = 0;
@@ -341,6 +341,7 @@ public:
 
     virtual bool HasNonGuiMove();
     virtual bool SynchronousOnly();
+    virtual void WaitMoveCompletion();
     virtual bool HasSetupDialog() const;
     virtual void SetupDialog();
 
