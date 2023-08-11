@@ -62,6 +62,7 @@
     #define GUIDE_ONCAMERA
     #define GUIDE_ONSTEPGUIDER
     #define GUIDE_INDI
+    #define GUIDE_EQTRACK
 
 #endif // WINDOWS/APPLE/LINUX
 

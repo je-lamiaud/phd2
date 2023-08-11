@@ -67,7 +67,7 @@
 static void *sendLoop(void *arg)
 {
 	static struct timespec lastLoop = {0,0};
-	static double sum = 0, sum2 = 0, minPeriod = HUGE, maxPeriod = -HUGE;
+	static double sum = 0, sum2 = 0, minPeriod = HUGE_VAL, maxPeriod = -HUGE_VAL;
 	static int n = -1;
 	ScopeEQTrack *eq = (ScopeEQTrack*)arg;
 	struct timespec deadline;
@@ -117,8 +117,8 @@ static void *sendLoop(void *arg)
          	                              m, s, minPeriod, maxPeriod));
 				sum = 0.0;
 				sum2 = 0.0;
-				minPeriod = HUGE;
-				maxPeriod = -HUGE;
+				minPeriod = HUGE_VAL;
+				maxPeriod = -HUGE_VAL;
 				n = 0;
 			}
 		}
