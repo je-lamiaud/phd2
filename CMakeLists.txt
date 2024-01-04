@@ -28,36 +28,33 @@
 
 # File created by Raffi Enficiaud
 
-cmake_minimum_required(VERSION 3.16)
+if(USE_SYSTEM_GTEST)
+  cmake_minimum_required(VERSION 3.16)
+else()
+  # If the system gtest is not available (especially Windows and Mac
+  # builds) gtest is incorporated using FetchContent which requires
+  # cmake 3.24
+  cmake_minimum_required(VERSION 3.24)
+endif()
 
 # this must come before any enable_language() or project()
 if(APPLE)
-  set(APPLE_ARCH "i386" CACHE STRING "Apple architecture: i386 or x86_64")
-  if(APPLE_ARCH MATCHES "^i386")
-    message(STATUS "configuring to build a 32-bit PHD2")
-    set(APPLE32 1)
-  elseif(APPLE_ARCH MATCHES "^x86_64")
-    message(STATUS "configuring to build a 64-bit PHD2")
-    SET(APPLE32 0)
-  else()
-    message(FATAL_ERROR "APPLE_ARCH must be i386 or x86_64")
-  endif()
-  if(APPLE32)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.7" CACHE STRING "Minimum OSX deployment version")
-  else()
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "12.6" CACHE STRING "Minimum OSX deployment version")
-  endif()
+  set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14" CACHE STRING "Minimum OSX deployment version")
   set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
-  set(CMAKE_CXX_STANDARD 11)
 endif()
 
 enable_language(C CXX)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(COMMAND cmake_policy)
     cmake_policy(SET CMP0003 NEW)
     if(POLICY CMP0043)
       cmake_policy(SET CMP0043 NEW)
     endif()
+endif()
+if(POLICY CMP0135)
+  cmake_policy(SET CMP0135 NEW)
 endif()
 
 
@@ -200,18 +197,12 @@ set(cam_SRC
   ${phd_src_dir}/cam_qguide.h
   ${phd_src_dir}/cam_qhy.cpp
   ${phd_src_dir}/cam_qhy.h
-  ${phd_src_dir}/cam_SAC42.cpp
-  ${phd_src_dir}/cam_SAC42.h
-  ${phd_src_dir}/cam_SACGuide.cpp
-  ${phd_src_dir}/cam_SACGuide.h
   ${phd_src_dir}/cam_sbig.cpp
   ${phd_src_dir}/cam_sbig.h
   ${phd_src_dir}/cam_sbigrotator.cpp
   ${phd_src_dir}/cam_sbigrotator.h
   ${phd_src_dir}/cam_skyraider.cpp
   ${phd_src_dir}/cam_skyraider.h
-  ${phd_src_dir}/cam_ssag.cpp
-  ${phd_src_dir}/cam_ssag.h
   ${phd_src_dir}/cam_sspiag.cpp
   ${phd_src_dir}/cam_sspiag.h
   ${phd_src_dir}/cam_starfish.cpp
@@ -432,8 +423,6 @@ set(phd2_SRC
   ${phd_src_dir}/phdconfig.h
   ${phd_src_dir}/phdcontrol.cpp
   ${phd_src_dir}/phdcontrol.h
-  ${phd_src_dir}/phdindiclient.cpp
-  ${phd_src_dir}/phdindiclient.h
   ${phd_src_dir}/phdupdate.cpp
   ${phd_src_dir}/phdupdate.h
   ${phd_src_dir}/pierflip_tool.cpp
@@ -711,9 +700,9 @@ if(APPLE)
     add_custom_command(
       TARGET phd2
       POST_BUILD
-      COMMAND install_name_tool -change SVBCameraSDK/lib/x64//libSVBCameraSDK.dylib
+      COMMAND install_name_tool -change @rpath/libSVBCameraSDK.dylib
                    @executable_path/../Frameworks/libSVBCameraSDK.dylib $<TARGET_FILE:phd2>
-      COMMAND install_name_tool -change /lib/x64/libusb-1.0.0.dylib
+      COMMAND install_name_tool -change @rpath/libusb-1.0.0.dylib
                    @executable_path/../Frameworks/libusb_openphd.dylib
                    $<TARGET_FILE_DIR:phd2>/../Frameworks/libSVBCameraSDK.dylib
       COMMENT "Updating dylib path for libSVBCameraSDK.dylib"
@@ -790,22 +779,27 @@ else()
   message(FATAL_ERROR "Unsupported platform")
 endif()
 
+if(PHD_EXTERNAL_PROJECT_DEPENDENCIES)
+  add_dependencies(phd2 ${PHD_EXTERNAL_PROJECT_DEPENDENCIES})
+endif()
 
 # properties of the project common to all platforms
 target_compile_definitions(phd2 PRIVATE "${wxWidgets_DEFINITIONS}" "HAVE_TYPE_TRAITS")
 target_compile_options(phd2 PRIVATE "${wxWidgets_CXX_FLAGS};")
-if(APPLE AND NOT APPLE32)
+if(APPLE)
   # suppress warnings about "overrides a member function but is not marked 'override'" with wxDECLARE_EVENT_TABLE
   target_compile_options(phd2 PRIVATE "-Wno-inconsistent-missing-override")
 endif()
 target_include_directories(phd2 PRIVATE ${wxWidgets_INCLUDE_DIRS})
 
-if (PHD_LINK_EXTERNAL_RELEASE)
-  target_link_libraries(phd2 optimized ${PHD_LINK_EXTERNAL_RELEASE})
-endif()
-if (PHD_LINK_EXTERNAL_DEBUG)
-  target_link_libraries(phd2 debug ${PHD_LINK_EXTERNAL_DEBUG})
-endif()
+foreach(lib ${PHD_LINK_EXTERNAL_DEBUG})
+  target_link_libraries(phd2 debug ${lib})
+endforeach()
+
+foreach(lib ${PHD_LINK_EXTERNAL_RELEASE})
+  target_link_libraries(phd2 optimized ${lib})
+endforeach()
+
 target_link_libraries(phd2
                       MPIIS_GP GPGuider # GP Guider
                       ${PHD_LINK_EXTERNAL})
@@ -873,7 +867,6 @@ if(APPLE)
     foreach(current_file IN LISTS current_translations current_zip)
       get_filename_component(message_file_name ${current_file} NAME)
       get_filename_component(message_file_ext ${current_file} EXT)
-      message(STATUS "${current_file} // ${message_file_ext}")
       if("${message_file_ext}" STREQUAL ".mo" OR "${message_file_ext}" STREQUAL ".zip")
         add_custom_command(
           TARGET phd2
@@ -881,7 +874,6 @@ if(APPLE)
           COMMAND "${CMAKE_COMMAND}" -E make_directory $<TARGET_FILE_DIR:phd2>/../${destination}
           COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${current_file} $<TARGET_FILE_DIR:phd2>/../${destination}/${message_file_name}
         )
-        message(STATUS "${current_file} // $<TARGET_FILE_DIR:phd2>/../${destination}/${message_file_name}")
       endif()
     endforeach()
   endforeach()

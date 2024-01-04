@@ -53,13 +53,45 @@ set(PHD_LINK_EXTERNAL)          # target to which the phd2 main library will lin
 set(PHD_COPY_EXTERNAL_ALL)      # copy of a file for any configuration
 set(PHD_COPY_EXTERNAL_DBG)      # copy for debug only
 set(PHD_COPY_EXTERNAL_REL)      # copy for release only
+set(PHD_EXTERNAL_PROJECT_DEPENDENCIES)
 
+if(APPLE)
+  # make sure not to pick up any homebrew or macports dependencies
+  set(CMAKE_IGNORE_PREFIX_PATH /opt/local)
+endif()
 
 # this module will be used to find system installed libraries on Linux
 if(UNIX AND NOT APPLE)
   find_package(PkgConfig)
 endif()
 
+if(WIN32)
+  include(FetchContent)
+  set(FETCHCONTENT_QUIET OFF)
+  FetchContent_Declare(
+    vcpkg
+    GIT_REPOSITORY https://github.com/microsoft/vcpkg.git
+    GIT_TAG 61f610845fb206298a69f708104a51d651872877
+    UPDATE_COMMAND bootstrap-vcpkg.bat -disableMetrics
+    COMMAND ${CMAKE_COMMAND} -E echo "Building vcpkg cfitsio"
+    COMMAND vcpkg install --binarysource=default --no-print-usage cfitsio:x86-windows
+    COMMAND ${CMAKE_COMMAND} -E echo "Building vcpkg curl[ssl]"
+    COMMAND vcpkg install --binarysource=default --no-print-usage curl[ssl]:x86-windows
+    COMMAND ${CMAKE_COMMAND} -E echo "Building vcpkg eigen3"
+    COMMAND vcpkg install --binarysource=default --no-print-usage eigen3:x86-windows
+    COMMAND ${CMAKE_COMMAND} -E echo "Building vcpkg opencv2"
+    COMMAND vcpkg install --binarysource=default --no-print-usage opencv2:x86-windows
+  )
+  message(STATUS "Preparing VCPKG")
+  FetchContent_MakeAvailable(vcpkg)
+  set(VCPKG_PREFIX ${vcpkg_SOURCE_DIR}/installed/x86-windows)
+  set(VCPKG_DEBUG_BIN ${VCPKG_PREFIX}/debug/bin)
+  set(VCPKG_RELEASE_BIN ${VCPKG_PREFIX}/bin)
+  set(VCPKG_DEBUG_LIB ${VCPKG_PREFIX}/debug/lib)
+  set(VCPKG_RELEASE_LIB ${VCPKG_PREFIX}/lib)
+  set(VCPKG_INCLUDE ${VCPKG_PREFIX}/include)
+  include_directories(${VCPKG_INCLUDE})
+endif()
 
 #
 # copies the dependency files into the target output directory
@@ -188,96 +220,37 @@ endif()
 ##############################################
 # cfitsio
 
-if(USE_SYSTEM_CFITSIO)
-  find_package(CFITSIO REQUIRED)
+if(WIN32)
+  include_directories(${VCPKG_INCLUDE}/cfitsio)
+  set(PHD_LINK_EXTERNAL_DEBUG ${PHD_LINK_EXTERNAL_DEBUG}
+      ${VCPKG_DEBUG_LIB}/cfitsio.lib
+      ${VCPKG_DEBUG_LIB}/zlibd.lib
+  )
+  set(PHD_LINK_EXTERNAL_RELEASE ${PHD_LINK_EXTERNAL_RELEASE}
+      ${VCPKG_RELEASE_LIB}/cfitsio.lib
+      ${VCPKG_RELEASE_LIB}/zlib.lib
+  )
+  set(PHD_COPY_EXTERNAL_DBG ${PHD_COPY_EXTERNAL_DBG}
+      ${VCPKG_DEBUG_BIN}/cfitsio.dll
+      ${VCPKG_DEBUG_BIN}/zlibd1.dll
+  )
+  set(PHD_COPY_EXTERNAL_REL ${PHD_COPY_EXTERNAL_REL}
+      ${VCPKG_RELEASE_BIN}/cfitsio.dll
+      ${VCPKG_RELEASE_BIN}/zlib1.dll
+  )
+else()
+  if(APPLE)
+    SET(_save_CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
+    SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+    find_package(CFITSIO REQUIRED)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ${_save_CMAKE_FIND_LIBRARY_SUFFIXES})
+  else()
+    find_package(CFITSIO REQUIRED)
+  endif()
   include_directories(${CFITSIO_INCLUDE_DIR})
   set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${CFITSIO_LIBRARIES})
   message(STATUS "Using system's CFITSIO.")
-else(USE_SYSTEM_CFITSIO)
-
-  set(CFITSIO_MAJOR_VERSION 3)
-  set(CFITSIO_MINOR_VERSION 47)
-  set(CFITSIO_VERSION ${CFITSIO_MAJOR_VERSION}.${CFITSIO_MINOR_VERSION})
-
-  set(libcfitsio_root ${thirdparties_deflate_directory}/cfitsio-${CFITSIO_VERSION})
-
-  if(NOT EXISTS ${libcfitsio_root})
-    # untar the dependency
-    message(STATUS "[thirdparty] untarring cfitsio")
-    execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf ${thirdparty_dir}/cfitsio-${CFITSIO_VERSION}-patched.tar.gz
-                    WORKING_DIRECTORY ${thirdparties_deflate_directory})
-  endif()
-
-  # copied and adapted from the CMakeLists.txt of cftsio project. The sources of the project
-  # are left untouched
-
-  file(GLOB CFTSIO_H_FILES "${libcfitsio_root}/*.h")
-
-  # OpenPhdGuiding COMMENT HERE
-  # Raffi: these should also be cleaned (link against zlib of the system)
-
-  set(CFTSIO_SRC_FILES
-    buffers.c cfileio.c checksum.c drvrfile.c drvrmem.c
-    drvrnet.c drvrsmem.c drvrgsiftp.c editcol.c edithdu.c eval_l.c
-    eval_y.c eval_f.c fitscore.c getcol.c getcolb.c getcold.c getcole.c
-    getcoli.c getcolj.c getcolk.c getcoll.c getcols.c getcolsb.c
-    getcoluk.c getcolui.c getcoluj.c getkey.c group.c grparser.c
-    histo.c iraffits.c
-    modkey.c putcol.c putcolb.c putcold.c putcole.c putcoli.c
-    putcolj.c putcolk.c putcoluk.c putcoll.c putcols.c putcolsb.c
-    putcolu.c putcolui.c putcoluj.c putkey.c region.c scalnull.c
-    swapproc.c wcssub.c wcsutil.c imcompress.c quantize.c ricecomp.c
-    pliocomp.c fits_hcompress.c fits_hdecompress.c zlib/zuncompress.c
-    zlib/zcompress.c zlib/adler32.c zlib/crc32.c zlib/inffast.c
-    zlib/inftrees.c zlib/trees.c zlib/zutil.c zlib/deflate.c
-    zlib/infback.c zlib/inflate.c zlib/uncompr.c simplerng.c
-    f77_wrap1.c f77_wrap2.c f77_wrap3.c f77_wrap4.c
-  )
-
-  foreach(_src_file IN LISTS CFTSIO_SRC_FILES)
-    set(CFTSIO_SRC_FILES_rooted "${CFTSIO_SRC_FILES_rooted}" ${libcfitsio_root}/${_src_file})
-  endforeach()
-
-  add_library(cfitsio STATIC ${CFTSIO_H_FILES} ${CFTSIO_SRC_FILES_rooted})
-  target_include_directories(cfitsio PUBLIC ${libcfitsio_root}/)
-
-  # OpenPhdGuiding MODIFICATION HERE: we link against math library only on UNIX
-  if(UNIX)
-    target_link_libraries(cfitsio m)
-  endif()
-
-  # OpenPhdGuiding MODIFICATION HERE: suppress warning about unused function result
-  if(UNIX AND NOT APPLE)
-    set_target_properties(cfitsio PROPERTIES COMPILE_FLAGS "-Wno-unused-result")
-    # Raffi: use target_compile_options ?
-  endif()
-
-  if(APPLE)
-    set_target_properties(cfitsio PROPERTIES COMPILE_FLAGS "-DHAVE_UNISTD_H")
-  endif()
-
-  if(WIN32)
-    target_compile_definitions(
-      cfitsio
-      PRIVATE BUILDING_CFITSIO
-      PRIVATE FF_NO_UNISTD_H
-      PRIVATE _CRT_SECURE_NO_WARNINGS
-      PRIVATE _CRT_SECURE_NO_DEPRECATE)
-  endif()
-
-  set_target_properties(cfitsio PROPERTIES
-                        VERSION ${CFITSIO_VERSION}
-                        SOVERSION ${CFITSIO_MAJOR_VERSION}
-                        FOLDER "Thirdparty/")
-
-
-  # indicating the link and include directives to the main project.
-  # already done by the directive target_include_directories(cfitsio PUBLIC
-  # include_directories(${libcfitsio_root})
-  set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} cfitsio)
-
-endif(USE_SYSTEM_CFITSIO)
-
+endif()
 
 
 
@@ -337,150 +310,147 @@ endif()
 
 if(NOT WIN32)
 
-set(LIBUSB libusb-1.0.21)
-set(libusb_root ${thirdparties_deflate_directory}/${LIBUSB})
-set(USB_build TRUE) # indicates that the USB library is part of the project. Set to FALSE if already existing on the system
-set(LIBUSB_static TRUE)  # true for static lib, dynamic lib otherwise
+  set(LIBUSB libusb-1.0.21)
+  set(libusb_root ${thirdparties_deflate_directory}/${LIBUSB})
+  set(USB_build TRUE) # indicates that the USB library is part of the project. Set to FALSE if already existing on the system
+  set(LIBUSB_static TRUE)  # true for static lib, dynamic lib otherwise
 
-if(NOT EXISTS ${libusb_root})
-  # untar the dependency
-  execute_process(
-    COMMAND ${CMAKE_COMMAND} -E tar xf ${thirdparty_dir}/${LIBUSB}.tar.bz2
-    WORKING_DIRECTORY ${thirdparties_deflate_directory})
-endif()
+  if(NOT EXISTS ${libusb_root})
+    # untar the dependency
+    execute_process(
+      COMMAND ${CMAKE_COMMAND} -E tar xf ${thirdparty_dir}/${LIBUSB}.tar.bz2
+      WORKING_DIRECTORY ${thirdparties_deflate_directory})
+  endif()
 
-set(libusb_dir ${libusb_root}/libusb)
-# core files
-set(libUSB_SRC
-  ${libusb_dir}/core.c
-  ${libusb_dir}/descriptor.c
-  ${libusb_dir}/hotplug.c
-  ${libusb_dir}/io.c
-  ${libusb_dir}/sync.c
-  ${libusb_dir}/libusb.h
-  ${libusb_dir}/libusbi.h
+  set(libusb_dir ${libusb_root}/libusb)
+  # core files
+  set(libUSB_SRC
+    ${libusb_dir}/core.c
+    ${libusb_dir}/descriptor.c
+    ${libusb_dir}/hotplug.c
+    ${libusb_dir}/io.c
+    ${libusb_dir}/sync.c
+    ${libusb_dir}/libusb.h
+    ${libusb_dir}/libusbi.h
   )
 
-# platform dependent files
-if(APPLE)
-  set(libUSB_SRC ${libUSB_SRC}
-
-    # platform specific configuration file
-    ${thirdparty_dir}/include/${LIBUSB}
-
-    # platform specific implementation
-    ${libusb_dir}/os/darwin_usb.h
-    ${libusb_dir}/os/darwin_usb.c
-
-    ${libusb_dir}/os/threads_posix.h
-    ${libusb_dir}/os/threads_posix.c
-
-    ${libusb_dir}/os/poll_posix.c
-  )
-  set(${LIBUSB}_additional_compile_definition "OS_DARWIN=1")
-  set(${LIBUSB}_additional_include_dir ${thirdparty_dir}/include/${LIBUSB})
-  # need to build a dynamic libusb since the ZWO SDK requires libusb
-  set(LIBUSB_static FALSE)
-elseif(WIN32)
-  set(libUSB_SRC ${libUSB_SRC}
-
-    # platform specific configuration files
-    ${libusb_root}/msvc/stdint.h
-    ${libusb_root}/msvc/inttypes.h
-    ${libusb_root}/msvc/config.h
-
-    # platform specific implementation
-    ${libusb_dir}/os/windows_winusb.h
-    ${libusb_dir}/os/windows_winusb.c
-
-    ${libusb_dir}/os/threads_windows.h
-    ${libusb_dir}/os/threads_windows.c
-
-    ${libusb_dir}/os/poll_windows.h
-    ${libusb_dir}/os/poll_windows.c
-   )
-  set(${LIBUSB}_additional_compile_definition "OS_WINDOWS=1")
-  set(${LIBUSB}_additional_include_dir ${libusb_root}/msvc/)
-elseif(UNIX)
-  # libUSB is already an indirect requirement/dependency for phd2 (through libindi).
-  # I (Raffi) personally prefer having the same version
-  # for all platforms, but it should in theory always be better to link against existing libraries
-  # compiled and shipped by skilled people.
-
-  # this would find the libUSB module that is installed on the system.
-  # It requires "sudo apt-get install libusb-1.0-0-dev"
-  if(USE_SYSTEM_LIBUSB)
-    pkg_check_modules(USB_pkg libusb-1.0)
-    if(0)
-      message(FATAL_ERROR "libUSB not detected")
-    else()
-      include_directories(${USB_pkg_INCLUDE_DIRS})
-      set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${USB_pkg_LIBRARIES})
-      set(USB_build FALSE)
-      set(usb_openphd ${USB_pkg_LIBRARIES})
-      message(STATUS "Using system's libUSB.")
-    endif()
-  else(USE_SYSTEM_LIBUSB)
-
-    # in case the library is not installed on the system (as I have on my machines)
-    # try by building the library ourselves
-
+  # platform dependent files
+  if(APPLE)
     set(libUSB_SRC ${libUSB_SRC}
 
-     # platform specific configuration file
-     ${thirdparty_dir}/include/${LIBUSB}
+      # platform specific configuration file
+      ${thirdparty_dir}/include/${LIBUSB}
 
-     # platform specific implementation
-     ${libusb_dir}/os/linux_usbfs.c
-     ${libusb_dir}/os/linux_usbfs.h
-     ${libusb_dir}/os/linux_netlink.c
+      # platform specific implementation
+      ${libusb_dir}/os/darwin_usb.h
+      ${libusb_dir}/os/darwin_usb.c
 
-     ${libusb_dir}/os/threads_posix.h
-     ${libusb_dir}/os/threads_posix.c
+      ${libusb_dir}/os/threads_posix.h
+      ${libusb_dir}/os/threads_posix.c
 
-     ${libusb_dir}/os/poll_posix.c
+      ${libusb_dir}/os/poll_posix.c
     )
-
-    set(${LIBUSB}_additional_compile_definition "OS_LINUX=1")
+    set(${LIBUSB}_additional_compile_definition "OS_DARWIN=1")
     set(${LIBUSB}_additional_include_dir ${thirdparty_dir}/include/${LIBUSB})
-  endif(USE_SYSTEM_LIBUSB)
+    # need to build a dynamic libusb since the ZWO SDK requires libusb
+    set(LIBUSB_static FALSE)
+  elseif(WIN32)
+    set(libUSB_SRC ${libUSB_SRC}
 
-else()
-  message(FATAL_ERROR "libUSB unsupported platform")
-endif()
+      # platform specific configuration files
+      ${libusb_root}/msvc/stdint.h
+      ${libusb_root}/msvc/inttypes.h
+      ${libusb_root}/msvc/config.h
 
-if(${USB_build})
-  include_directories(${libusb_dir})
+      # platform specific implementation
+      ${libusb_dir}/os/windows_winusb.h
+      ${libusb_dir}/os/windows_winusb.c
 
-  # libUSB compilation if OSX or Win32 or not installed on Linux
-  if(LIBUSB_static)
-    add_library(usb_openphd ${libUSB_SRC})
-  else()
-    add_library(usb_openphd SHARED ${libUSB_SRC})
-    # target_link_options requires newer cmake, so fall back to the old LINK_FLAGS target property
-    #   target_link_options(usb_openphd -compatibility_version 2 -current_version 2)
-    set_target_properties(usb_openphd PROPERTIES LINK_FLAGS "-compatibility_version 2 -current_version 2")
-    if(APPLE32)
-      set(libUSB_link_objc "objc")
-    endif()
-    target_link_libraries(usb_openphd
-      ${coreFoundationFramework}
-      ${iokitFramework}
-      ${libUSB_link_objc}
+      ${libusb_dir}/os/threads_windows.h
+      ${libusb_dir}/os/threads_windows.c
+
+      ${libusb_dir}/os/poll_windows.h
+      ${libusb_dir}/os/poll_windows.c
     )
-  endif()
-  target_include_directories(usb_openphd PRIVATE ${${LIBUSB}_additional_include_dir})
-  target_compile_definitions(usb_openphd PUBLIC ${${LIBUSB}_additional_compile_definition})
-  set_property(TARGET usb_openphd PROPERTY FOLDER "Thirdparty/")
+    set(${LIBUSB}_additional_compile_definition "OS_WINDOWS=1")
+    set(${LIBUSB}_additional_include_dir ${libusb_root}/msvc/)
+  elseif(UNIX)
+    # libUSB is already an indirect requirement/dependency for phd2 (through libindi).
+    # I (Raffi) personally prefer having the same version
+    # for all platforms, but it should in theory always be better to link against existing libraries
+    # compiled and shipped by skilled people.
 
-  if(WIN32)
-    # silence the warnings on externals for win32
-    target_compile_definitions(usb_openphd PRIVATE _CRT_SECURE_NO_WARNINGS)
+    # this would find the libUSB module that is installed on the system.
+    # It requires "sudo apt-get install libusb-1.0-0-dev"
+    if(USE_SYSTEM_LIBUSB)
+      pkg_check_modules(USB_pkg libusb-1.0)
+      if(0)
+        message(FATAL_ERROR "libUSB not detected")
+      else()
+        include_directories(${USB_pkg_INCLUDE_DIRS})
+        set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${USB_pkg_LIBRARIES})
+        set(USB_build FALSE)
+        set(usb_openphd ${USB_pkg_LIBRARIES})
+        message(STATUS "Using system's libUSB.")
+      endif()
+    else(USE_SYSTEM_LIBUSB)
+
+      # in case the library is not installed on the system (as I have on my machines)
+      # try by building the library ourselves
+
+      set(libUSB_SRC ${libUSB_SRC}
+
+        # platform specific configuration file
+        ${thirdparty_dir}/include/${LIBUSB}
+
+        # platform specific implementation
+        ${libusb_dir}/os/linux_usbfs.c
+        ${libusb_dir}/os/linux_usbfs.h
+        ${libusb_dir}/os/linux_netlink.c
+
+        ${libusb_dir}/os/threads_posix.h
+        ${libusb_dir}/os/threads_posix.c
+
+        ${libusb_dir}/os/poll_posix.c
+      )
+
+      set(${LIBUSB}_additional_compile_definition "OS_LINUX=1")
+      set(${LIBUSB}_additional_include_dir ${thirdparty_dir}/include/${LIBUSB})
+    endif(USE_SYSTEM_LIBUSB)
+
   else()
-    target_compile_definitions(usb_openphd PRIVATE LIBUSB_DESCRIBE "")
+    message(FATAL_ERROR "libUSB unsupported platform")
   endif()
-  set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} usb_openphd)
-endif()
+
+  if(${USB_build})
+    include_directories(${libusb_dir})
+
+    # libUSB compilation if OSX or Win32 or not installed on Linux
+    if(LIBUSB_static)
+      add_library(usb_openphd ${libUSB_SRC})
+    else()
+      add_library(usb_openphd SHARED ${libUSB_SRC})
+      # target_link_options requires newer cmake, so fall back to the old LINK_FLAGS target property
+      #   target_link_options(usb_openphd -compatibility_version 2 -current_version 2)
+      set_target_properties(usb_openphd PROPERTIES LINK_FLAGS "-compatibility_version 2 -current_version 2")
+      target_link_libraries(usb_openphd
+        ${coreFoundationFramework}
+        ${iokitFramework}
+        ${libUSB_link_objc}
+      )
+    endif()
+    target_include_directories(usb_openphd PRIVATE ${${LIBUSB}_additional_include_dir})
+    target_compile_definitions(usb_openphd PUBLIC ${${LIBUSB}_additional_compile_definition})
+    set_property(TARGET usb_openphd PROPERTY FOLDER "Thirdparty/")
+
+    if(WIN32)
+      # silence the warnings on externals for win32
+      target_compile_definitions(usb_openphd PRIVATE _CRT_SECURE_NO_WARNINGS)
+    else()
+      target_compile_definitions(usb_openphd PRIVATE LIBUSB_DESCRIBE "")
+    endif()
+    set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} usb_openphd)
+  endif()
 
 endif() # NOT WIN32
 
@@ -489,30 +459,29 @@ endif() # NOT WIN32
 #############################################
 
 if(WIN32)
-  set(libcurl_root ${thirdparties_deflate_directory}/libcurl)
-  set(libcurl_dir ${libcurl_root}/libcurl-7.54.0-win32)
-  if(NOT EXISTS ${libcurl_root})
-    # unzip the dependency
-    file(MAKE_DIRECTORY ${libcurl_root})
-    execute_process(
-      COMMAND ${CMAKE_COMMAND} -E tar xf ${CMAKE_SOURCE_DIR}/thirdparty/libcurl-7.54.0-win32.zip --format=zip
-        WORKING_DIRECTORY ${libcurl_root})
-  endif()
-  include_directories(${libcurl_dir}/include)
-  set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${libcurl_dir}/lib/LIBCURL.LIB)
+  set(PHD_LINK_EXTERNAL_DEBUG ${PHD_LINK_EXTERNAL_DEBUG}
+      ${VCPKG_DEBUG_LIB}/libcurl-d.lib
+  )
+  set(PHD_LINK_EXTERNAL_RELEASE ${PHD_LINK_EXTERNAL_RELEASE}
+      ${VCPKG_RELEASE_LIB}/libcurl.lib
+  )
+  set(PHD_COPY_EXTERNAL_DBG ${PHD_COPY_EXTERNAL_DBG}
+      ${VCPKG_DEBUG_BIN}/libcurl-d.dll
+  )
+  set(PHD_COPY_EXTERNAL_REL ${PHD_COPY_EXTERNAL_REL}
+      ${VCPKG_RELEASE_BIN}/libcurl.dll
+  )
 else()
   if(APPLE)
-    # make sure to pick up the macos curl, not the mapcports curl in /opt/local/lib
-    find_library(CURL_LIBRARIES curl)
-#    find_library(CURL_LIBRARIES
-#                 NAMES curl
-#		 PATHS /usr/lib
-#		 NO_DEFAULT_PATH)
-#    if(NOT CURL_LIBRARIES)
-#      message(FATAL_ERROR "libcurl not found")
-#    endif()
-#    set(CURL_FOUND True)
-#    set(CURL_INCLUDE_DIRS /usr/include)
+    find_library(CURL_LIBRARIES
+                 NAMES curl
+                 PATHS /usr/lib
+    )
+    if(NOT CURL_LIBRARIES)
+      message(FATAL_ERROR "libcurl not found")
+    endif()
+    set(CURL_FOUND True)
+    set(CURL_INCLUDE_DIRS /usr/include)
   else()
     find_package(CURL REQUIRED)
   endif()
@@ -524,52 +493,32 @@ endif()
 #############################################
 # the Eigen library, mostly header only
 
-if(USE_SYSTEM_EIGEN3)
+if(WIN32)
+  set(EIGEN_SRC ${VCPKG_INCLUDE}/eigen3)
+else()
   find_package(Eigen3 REQUIRED)
   set(EIGEN_SRC ${EIGEN3_INCLUDE_DIR})
   message(STATUS "Using system's Eigen3.")
-else(USE_SYSTEM_EIGEN3)
-  set(EIGEN eigen-eigen-67e894c6cd8f)
-  set(eigen_root ${thirdparties_deflate_directory}/${EIGEN})
-  if(NOT EXISTS ${eigen_root})
-    # untar the dependency
-    execute_process(
-      COMMAND ${CMAKE_COMMAND} -E tar xjf ${thirdparty_dir}/${EIGEN}.tar.bz2
-      WORKING_DIRECTORY ${thirdparties_deflate_directory})
-  endif()
-
-  set(EIGEN_SRC ${eigen_root})
-endif(USE_SYSTEM_EIGEN3)
+endif()
 
 
 #############################################
 # Google test, easily built
+# https://github.com/google/googletest/tree/main/googletest#incorporating-into-an-existing-cmake-project
 
 if(USE_SYSTEM_GTEST)
   find_package(GTest REQUIRED)
-  set(GTEST_HEADERS ${GTEST_INCLUDE_DIRS})
-  message(STATUS "Using system's Gtest.")
-else(USE_SYSTEM_GTEST)
-  set(GTEST gtest-1.7.0)
-  set(gtest_root ${thirdparties_deflate_directory}/${GTEST})
-  if(NOT EXISTS ${gtest_root})
-    # unzip the dependency
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E tar xzf ${thirdparty_dir}/${GTEST}.zip
-      WORKING_DIRECTORY ${thirdparties_deflate_directory})
-  endif()
-
-  if(MSVC)
-    # do not replace default things, basically this line avoids gtest to replace
-    # default compilation options (which ends up with messing the link options) for the CRT
-    # As the name DOES NOT suggest, it does not force the shared crt. It forces the use of default things.
-    set(gtest_force_shared_crt ON CACHE INTERNAL "Gtest crt configuration" FORCE)
-  endif()
-  set(GTEST_HEADERS ${gtest_root}/include)
-  add_subdirectory(${gtest_root} tmp_cmakegtest)
-  set_property(TARGET gtest PROPERTY FOLDER "Thirdparty/")
-  set_property(TARGET gtest_main PROPERTY FOLDER "Thirdparty/")
-endif(USE_SYSTEM_GTEST)
+  message(STATUS "Using system's gtest")
+else()
+  include(FetchContent)
+    FetchContent_Declare(
+      googletest
+      URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz
+  )
+  # For Windows: Prevent overriding the parent project's compiler/linker settings
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(googletest)
+endif()
 
 
 #############################################
@@ -577,13 +526,14 @@ endif(USE_SYSTEM_GTEST)
 # The usage is a bit different on all the platforms. For having version >= 3.0, a version of cmake >= 3.0 should be used on Windows (on Linux/OSX it works properly this way).
 if(WIN32)
   # wxWidgets
-  set(wxWidgets_CONFIGURATION msw)
+  set(wxWidgets_CONFIGURATION msw CACHE STRING "Set wxWidgets configuration")
 
   if(NOT wxWidgets_PREFIX_DIRECTORY OR NOT EXISTS ${wxWidgets_PREFIX_DIRECTORY})
     message(FATAL_ERROR "The variable wxWidgets_PREFIX_DIRECTORY should be defined and should point to a valid wxWindows installation path. See the open-phd-guiding wiki for more information.")
   endif()
 
   set(wxWidgets_ROOT_DIR ${wxWidgets_PREFIX_DIRECTORY})
+  set(wxWidgets_LIB_DIR ${wxWidgets_ROOT_DIR}/lib/vc_lib)
   set(wxWidgets_USE_STATIC ON)
   set(wxWidgets_USE_DEBUG ON)
   set(wxWidgets_USE_UNICODE OFF)
@@ -606,12 +556,12 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 
   set(wxRequiredLibs aui core base adv html net)
   execute_process(COMMAND ${wxWidgets_CONFIG_EXECUTABLE} --libs ${wxRequiredLibs}
-	  OUTPUT_VARIABLE wxWidgets_LIBRARIES
-	  OUTPUT_STRIP_TRAILING_WHITESPACE)
+                  OUTPUT_VARIABLE wxWidgets_LIBRARIES
+                  OUTPUT_STRIP_TRAILING_WHITESPACE)
   separate_arguments(${wxWidgets_LIBRARIES})
   execute_process(COMMAND ${wxWidgets_CONFIG_EXECUTABLE} --cflags ${wxRwxRequiredLibs}
-	  OUTPUT_VARIABLE wxWidgets_CXXFLAGS
-	  OUTPUT_STRIP_TRAILING_WHITESPACE)
+                  OUTPUT_VARIABLE wxWidgets_CXXFLAGS
+                  OUTPUT_STRIP_TRAILING_WHITESPACE)
   separate_arguments(wxWidgets_CXX_FLAGS UNIX_COMMAND "${wxWidgets_CXXFLAGS}")
   separate_arguments(wxWidgets_LDFLAGS UNIX_COMMAND "${wxWidgets_LDFLAGS}")
 else()
@@ -643,224 +593,51 @@ set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${wxWidgets_LIBRARIES})
 #
 #############################################
 
-if(WIN32)
-  set(indi_zip ${CMAKE_SOURCE_DIR}/thirdparty/indiclient-44aaf5d3-win32.zip)
-  set(indiclient_root ${thirdparties_deflate_directory})
-  set(indiclient_dir ${indiclient_root}/indiclient)
-  if(NOT EXISTS ${indiclient_dir})
-    message(STATUS "[thirdparty] untarring indiclient")
-    execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf ${indi_zip}
-                    WORKING_DIRECTORY ${indiclient_root})
-  endif()
-  include_directories(${indiclient_dir}/include)
-  set(PHD_LINK_EXTERNAL_RELEASE ${PHD_LINK_EXTERNAL_RELEASE} ${indiclient_dir}/lib/indiclient.lib)
-  set(PHD_LINK_EXTERNAL_DEBUG ${PHD_LINK_EXTERNAL_DEBUG} ${indiclient_dir}/lib/indiclientd.lib)
+if(USE_SYSTEM_LIBINDI)
+  message(STATUS "Using system's libindi")
+  find_package(INDI 2.0.0 REQUIRED)
+  set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${INDI_CLIENT_LIBRARIES})
+
+  find_package(ZLIB REQUIRED)
+  set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${ZLIB_LIBRARIES})
+
+  find_package(Nova REQUIRED)
+  add_definitions("-DLIBNOVA")
+  include_directories(${NOVA_INCLUDE_DIR})
+  set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${NOVA_LIBRARIES})
 else()
-  # Linux or OSX
-  if(USE_SYSTEM_LIBINDI)
-    message(STATUS "Using system's libindi")
-    # INDI
-    find_package(INDI 1.7 REQUIRED)
-    # source files include <libindi/baseclient.h> so we need the libindi parent directory in the include directories
-    get_filename_component(INDI_INCLUDE_PARENT_DIR ${INDI_INCLUDE_DIR} DIRECTORY)
-    include_directories(${INDI_INCLUDE_PARENT_DIR})
-    set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${INDI_CLIENT_LIBRARIES})
-
-    find_package(ZLIB REQUIRED)
-    set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${ZLIB_LIBRARIES})
+  Include(ExternalProject)
+  set(indi_INSTALL_DIR ${CMAKE_BINARY_DIR}/libindi)
+  ExternalProject_Add(
+    indi
+    GIT_REPOSITORY https://github.com/indilib/indi.git
+    GIT_TAG 856ac85b965177d23cd0c819a49fd50bdaeece60  # v2.0.5
+    CMAKE_ARGS -Wno-dev
+      -DINDI_BUILD_SERVER=OFF
+      -DINDI_BUILD_DRIVERS=OFF
+      -DINDI_BUILD_CLIENT=ON
+      -DINDI_BUILD_QT5_CLIENT=OFF
+      -DINDI_BUILD_SHARED=OFF
+      -DCMAKE_PREFIX_PATH=${VCPKG_PREFIX}
+      -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/libindi
+      -DCMAKE_CXX_FLAGS=-D_CRT_SECURE_NO_WARNINGS
+  )
+  include_directories(${indi_INSTALL_DIR}/include)
+  if (WIN32)
+    set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${indi_INSTALL_DIR}/lib/indiclient.lib)
   else()
+    set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${indi_INSTALL_DIR}/lib/libindiclient.a)
     if(APPLE)
-      # make sure to pick up the macos libz, not the mapcports libz in /opt/local/lib
-      find_library(ZLIB_LIBRARIES z)
-#      find_library(ZLIB_LIBRARIES
-#                   NAMES z
-#		   PATHS /usr/lib
-#		   NO_DEFAULT_PATH)
-#      if(NOT ZLIB_LIBRARIES)
-#        message(FATAL_ERROR "libz not found")
-#      endif()
+      # MacOS must use a static libnova to avoid introducing a homebrew or macports dylib dependency
+      find_library(LIBNOVA REQUIRED NAMES libnova.a PATHS /usr/local/lib)
+      set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${LIBNOVA})
     else()
-      find_package(ZLIB REQUIRED)
+      find_library(LIBNOVA REQUIRED NAMES nova)
+      set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${LIBNOVA} z)
     endif()
-    set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${ZLIB_LIBRARIES})
-
-    set(indi_zip ${thirdparty_dir}/indi-1.8.3.tar.gz)
-    message(STATUS "Using project provided libindi '${indi_zip}'")
-    set(libindi_root "${thirdparties_deflate_directory}/indi-1.8.3")
-
-    # this does not work because of the configure_file commands below
-    # that want to run at camke time, but this woudl extract the
-    # libindi files at build time
-#    add_custom_target(unzip_indi ALL)
-#    add_custom_command(TARGET unzip_indi PRE_BUILD
-#      COMMAND ${CMAKE_COMMAND} -E remove_directory ${libindi_root}
-#      COMMAND ${CMAKE_COMMAND} -E tar xvf ${indi_zip}
-#      WORKING_DIRECTORY ${thirdparties_deflate_directory}
-#      DEPENDS ${indi_zip}
-#      COMMENT "Unpacking INDI Client sources"
-#      VERBATIM)
-    if(NOT EXISTS ${libindi_root})
-      message(STATUS "[thirdparty] extracting libindi sources")
-      execute_process(
-        COMMAND ${CMAKE_COMMAND} -E tar xzf ${indi_zip}
-        WORKING_DIRECTORY ${thirdparties_deflate_directory})
-    endif()
-
-    if(NOT APPLE)
-      # todo: OSX build fails when Nova is found. I think it needs the include dir
-      # punting for now to get the build un-broken
-
-      # Nova is required for sidereal time computation with Indi driver that not report it.
-      # This is not critical if it is not present but the hour angle computation will be wrong.
-      find_package(Nova)
-      if(NOVA_FOUND)
-        add_definitions("-DLIBNOVA")
-        set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${NOVA_LIBRARIES})
-      endif()
-    endif()
-
-    # warning: copied from the indi CMakeLists.txt. This should be updated when
-    # updating the archive of libindi
-    # those variables should be defined before the configure_files
-    set(INDI_SOVERSION "1")
-    set(CMAKE_INDI_VERSION_MAJOR 1)
-    set(CMAKE_INDI_VERSION_MINOR 8)
-    set(CMAKE_INDI_VERSION_RELEASE 7)
-    set(CMAKE_INDI_VERSION_STRING "${CMAKE_INDI_VERSION_MAJOR}.${CMAKE_INDI_VERSION_MINOR}.${CMAKE_INDI_VERSION_RELEASE}")
-    set(INDI_VERSION ${CMAKE_INDI_VERSION_MAJOR}.${CMAKE_INDI_VERSION_MINOR}.${CMAKE_INDI_VERSION_RELEASE})
-
-    ########################################  Paths  ###################################################
-
-    set(DATA_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/share/indi/")
-
-    set(LIBINDI_DIRECTORY "${libindi_root}/")
-
-    # separate folder for the configurations
-    set(libindi_root_config "${thirdparties_deflate_directory}/libindi_configuration")
-    if(NOT EXISTS ${libindi_root_config})
-      file(MAKE_DIRECTORY "${libindi_root_config}")
-    endif()
-
-    configure_file(${LIBINDI_DIRECTORY}/config.h.cmake ${libindi_root_config}/config.h )
-    configure_file(${LIBINDI_DIRECTORY}/indiversion.h.cmake ${libindi_root_config}/indiversion.h )
-
-    # here we simulate the fact that the installation layout is not the same
-    # as the source layout in libindi for the client. The installation layout
-    # is needed by program
-    # we do not want to perform a full installation in a fake directory
-    # install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/libs/indibase/baseclient.h DESTINATION ${INCLUDE_INSTALL_DIR}/libindi COMPONENT Devel)
-    if(NOT EXISTS "${libindi_root_config}/libindi")
-      file(MAKE_DIRECTORY "${libindi_root_config}/libindi")
-    endif()
-    configure_file(
-      "${LIBINDI_DIRECTORY}/libs/indibase/baseclient.h"
-      "${libindi_root_config}/libindi/baseclient.h"
-      COPYONLY)
-    set(indiclient_INC
-      indiapi.h
-      indidevapi.h
-      base64.h
-      libs/lilxml.h
-      libs/indicom.h
-      eventloop.h
-      indidriver.h
-      libs/indibase/indibase.h
-      libs/indibase/indibasetypes.h
-      libs/indibase/basedevice.h
-      libs/indibase/defaultdevice.h
-      libs/indibase/indiccd.h
-      libs/indibase/indidetector.h
-      libs/indibase/indifilterwheel.h
-      libs/indibase/indifocuserinterface.h
-      libs/indibase/indifocuser.h
-      libs/indibase/inditelescope.h
-      libs/indibase/indiguiderinterface.h
-      libs/indibase/indifilterinterface.h
-      libs/indibase/indiproperty.h
-      libs/indibase/indistandardproperty.h
-      libs/indibase/indidome.h
-      libs/indibase/indigps.h
-      libs/indibase/indilightboxinterface.h
-      libs/indibase/indidustcapinterface.h
-      libs/indibase/indiweather.h
-      libs/indibase/indilogger.h
-      libs/indibase/indicontroller.h
-      libs/indibase/indiusbdevice.h
-      libs/indibase/hidapi.h
-
-      libs/indibase/connectionplugins/connectioninterface.h
-      libs/indibase/connectionplugins/connectionserial.h
-      libs/indibase/connectionplugins/connectiontcp.h
-    )
-
-    foreach(_file IN LISTS indiclient_INC)
-      get_filename_component(_file_wo_d "${_file}" NAME)
-      configure_file(
-        "${LIBINDI_DIRECTORY}/${_file}"
-        "${libindi_root_config}/libindi/${_file_wo_d}"
-        COPYONLY)
-    endforeach()
-
-
-
-    # include_directories( ${CMAKE_CURRENT_BINARY_DIR})
-    ####include_directories( ${LIBINDI_DIRECTORY})
-    ####include_directories( ${LIBINDI_DIRECTORY}/libs)
-    ####include_directories( ${LIBINDI_DIRECTORY}/libs/indibase)
-    ####include_directories( ${ZLIB_INCLUDE_DIR})
-    ####include_directories( ${CFITSIO_INCLUDE_DIR})
-
-    # default for libindi client
-    option(INDI_FAST_BLOB "Build INDI with Fast BLOB support" ON)
-
-    set(indiclient_C_SRC
-        ${LIBINDI_DIRECTORY}/libs/lilxml.c
-        ${LIBINDI_DIRECTORY}/base64.c
-        ${LIBINDI_DIRECTORY}/libs/indicom.c)
-
-    set(indiclient_CXX_SRC
-        ${LIBINDI_DIRECTORY}/libs/indibase/basedevice.cpp
-        ${LIBINDI_DIRECTORY}/libs/indibase/baseclient.cpp
-        ${LIBINDI_DIRECTORY}/libs/indibase/indiproperty.cpp
-        ${LIBINDI_DIRECTORY}/libs/indibase/indistandardproperty.cpp)
-
-    add_library(indiclient STATIC ${indiclient_C_SRC} ${indiclient_CXX_SRC})
-    target_include_directories(indiclient
-      PUBLIC
-        ${libindi_root_config}
-        ${LIBINDI_DIRECTORY}
-        ${LIBINDI_DIRECTORY}/libs
-        ${LIBINDI_DIRECTORY}/libs/indibase
-        ${ZLIB_INCLUDE_DIR}
-        ${CFITSIO_INCLUDE_DIR}
-    )
-    if(INDI_FAST_BLOB)
-      # Append ENCLEN attribute to outgoing BLOB elements to enable fast parsing by clients
-      target_compile_definitions(indiclient
-        PUBLIC
-          -DWITH_ENCLEN)
-    endif()
-    set_property(TARGET indiclient PROPERTY C_STANDARD 99) # some C code of the client requires this
-    target_link_libraries(indiclient
-      PUBLIC
-        ${CMAKE_THREAD_LIBS_INIT}
-        ${ZLIB_LIBRARIES}) # for conserving DSO
-    set_property(TARGET indiclient PROPERTY FOLDER "Thirdparty/")
-
-    # Raffi: I do not think we need this, see documentaiton for
-    # POSITION_INDEPENDENT_CODE property of CMake
-    #if (NOT CYGWIN AND NOT WIN32)
-    #  set_target_properties(indiclient PROPERTIES COMPILE_FLAGS "-fPIC")
-    #endif (NOT CYGWIN AND NOT WIN32)
-
-    #install(TARGETS indiclient ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-    #install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/libs/indibase/baseclient.h DESTINATION ${INCLUDE_INSTALL_DIR}/libindi COMPONENT Devel)
-
-    set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} indiclient)
   endif()
-
+  list(APPEND PHD_EXTERNAL_PROJECT_DEPENDENCIES indi)
 endif()
-
 
 
 #############################################
@@ -890,53 +667,35 @@ if(WIN32)
     message(STATUS "Disabling VLD: DISABLE_VLD is set")
   endif()
 
-  # openCV
-  # openCV should be installed somewhere defined on the command line. If this is not the case, an error message is printed and
-  # the build is aborted.
-  if(NOT OpenCVRoot)
-    message(FATAL_ERROR "OpenCVRoot is not defined. OpenCVRoot should be defined with the option -DOpenCVRoot=<root-to-opencv>")
-  endif()
-
-  set(opencv_root ${OpenCVRoot})
-
-  if(NOT EXISTS ${opencv_root}/build/include)
-    message(FATAL_ERROR "Cannot find the header directory of open cv. Please ensure you have decompressed the version for windows")
-  endif()
-
-  if(NOT EXISTS ${opencv_root}/build/OpenCVConfig.cmake)
-    message(FATAL_ERROR "Cannot find the header directory of open cvOpenCVConfig.cmake. Please ensure you have decompressed the version for windows")
-  endif()
-
-  # apparently this is the way cmake works... did not know, the OpenCVConfig.cmake file is enough for the configuration
-  set(OpenCV_DIR ${opencv_root}/build CACHE PATH "Location of the OpenCV configuration directory")
-  set(OpenCV_SHARED ON)
-  set(OpenCV_STATIC OFF)
-  set(BUILD_SHARED_LIBS ON)
-  find_package(OpenCV REQUIRED)
-
-  if(NOT OpenCV_INCLUDE_DIRS)
-    message(FATAL_ERROR "Cannot add the OpenCV include directories")
-  endif()
-
-  list(REMOVE_DUPLICATES OpenCV_LIB_DIR)
-  list(LENGTH OpenCV_LIB_DIR list_lenght)
-  if(${list_lenght} GREATER 1)
-    list(GET OpenCV_LIB_DIR 0 OpenCV_LIB_DIR)
-  endif()
-  set(OpenCV_BIN_DIR ${OpenCV_LIB_DIR}/../bin)
-  get_filename_component(OpenCV_BIN_DIR ${OpenCV_BIN_DIR} ABSOLUTE)
-
-  include_directories(${OpenCV_INCLUDE_DIRS})
-  set(OPENCV_VER "2410")
-  set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${OpenCV_LIBS}) # Raffi: maybe reduce a bit the number of libraries to link against
-  set(PHD_COPY_EXTERNAL_DBG ${PHD_COPY_EXTERNAL_DBG} ${OpenCV_BIN_DIR}/opencv_imgproc${OPENCV_VER}d.dll)
-  set(PHD_COPY_EXTERNAL_REL ${PHD_COPY_EXTERNAL_REL} ${OpenCV_BIN_DIR}/opencv_imgproc${OPENCV_VER}.dll)
-
-  set(PHD_COPY_EXTERNAL_DBG ${PHD_COPY_EXTERNAL_DBG} ${OpenCV_BIN_DIR}/opencv_highgui${OPENCV_VER}d.dll)
-  set(PHD_COPY_EXTERNAL_REL ${PHD_COPY_EXTERNAL_REL} ${OpenCV_BIN_DIR}/opencv_highgui${OPENCV_VER}.dll)
-
-  set(PHD_COPY_EXTERNAL_DBG ${PHD_COPY_EXTERNAL_DBG} ${OpenCV_BIN_DIR}/opencv_core${OPENCV_VER}d.dll)
-  set(PHD_COPY_EXTERNAL_REL ${PHD_COPY_EXTERNAL_REL} ${OpenCV_BIN_DIR}/opencv_core${OPENCV_VER}.dll)
+  include_directories(${VCPKG_INCLUDE}/opencv2.4)
+  set(PHD_LINK_EXTERNAL_DEBUG ${PHD_LINK_EXTERNAL_DEBUG}
+      ${VCPKG_DEBUG_LIB}/opencv_imgproc2d.lib
+      ${VCPKG_DEBUG_LIB}/opencv_highgui2d.lib
+      ${VCPKG_DEBUG_LIB}/opencv_core2d.lib
+  )
+  set(PHD_LINK_EXTERNAL_RELEASE ${PHD_LINK_EXTERNAL_RELEASE}
+      ${VCPKG_RELEASE_LIB}/opencv_imgproc2.lib
+      ${VCPKG_RELEASE_LIB}/opencv_highgui2.lib
+      ${VCPKG_RELEASE_LIB}/opencv_core2.lib
+  )
+  set(PHD_COPY_EXTERNAL_DBG ${PHD_COPY_EXTERNAL_DBG}
+      ${VCPKG_DEBUG_BIN}/opencv_imgproc2d.dll
+      ${VCPKG_DEBUG_BIN}/opencv_highgui2d.dll
+      ${VCPKG_DEBUG_BIN}/opencv_core2d.dll
+      ${VCPKG_DEBUG_BIN}/jpeg62.dll
+      ${VCPKG_DEBUG_BIN}/libpng16d.dll
+      ${VCPKG_DEBUG_BIN}/tiffd.dll
+      ${VCPKG_DEBUG_BIN}/liblzma.dll
+  )
+  set(PHD_COPY_EXTERNAL_REL ${PHD_COPY_EXTERNAL_REL}
+      ${VCPKG_RELEASE_BIN}/opencv_imgproc2.dll
+      ${VCPKG_RELEASE_BIN}/opencv_highgui2.dll
+      ${VCPKG_RELEASE_BIN}/opencv_core2.dll
+      ${VCPKG_RELEASE_BIN}/jpeg62.dll
+      ${VCPKG_RELEASE_BIN}/libpng16.dll
+      ${VCPKG_RELEASE_BIN}/tiff.dll
+      ${VCPKG_RELEASE_BIN}/liblzma.dll
+  )
 endif()
 
 
@@ -965,12 +724,8 @@ if(WIN32)
   set(PHD_COPY_EXTERNAL_ALL ${PHD_COPY_EXTERNAL_ALL}  ${PHD_PROJECT_ROOT_DIR}/WinLibs/tbb.dll)
 
   # altair cameras
-  set(PHD_COPY_EXTERNAL_ALL ${PHD_COPY_EXTERNAL_ALL}  ${PHD_PROJECT_ROOT_DIR}/WinLibs/AltairCam.dll)
+  set(PHD_COPY_EXTERNAL_ALL ${PHD_COPY_EXTERNAL_ALL}  ${PHD_PROJECT_ROOT_DIR}/WinLibs/altaircam.dll)
   set(PHD_COPY_EXTERNAL_ALL ${PHD_COPY_EXTERNAL_ALL}  ${PHD_PROJECT_ROOT_DIR}/WinLibs/AltairCam_legacy.dll)
-
-  # DsiDevice
-  set(PHD_LINK_EXTERNAL     ${PHD_LINK_EXTERNAL}      ${PHD_PROJECT_ROOT_DIR}/cameras/DsiDevice.lib)
-  set(PHD_COPY_EXTERNAL_ALL ${PHD_COPY_EXTERNAL_ALL}  ${PHD_PROJECT_ROOT_DIR}/WinLibs/DSCI.dll)
 
   # SBIGUDrv
   add_definitions(-DHAVE_SBIG_CAMERA=1)
@@ -980,16 +735,6 @@ if(WIN32)
   # DICAMSDK
   set(PHD_LINK_EXTERNAL     ${PHD_LINK_EXTERNAL}      ${PHD_PROJECT_ROOT_DIR}/cameras/DICAMSDK.lib)
   set(PHD_COPY_EXTERNAL_ALL ${PHD_COPY_EXTERNAL_ALL}  ${PHD_PROJECT_ROOT_DIR}/WinLibs/DICAMSDK.dll)
-
-  # SSAGIF
-  set(PHD_LINK_EXTERNAL     ${PHD_LINK_EXTERNAL}      ${PHD_PROJECT_ROOT_DIR}/cameras/SSAGIF.lib)
-  set(PHD_COPY_EXTERNAL_ALL ${PHD_COPY_EXTERNAL_ALL}  ${PHD_PROJECT_ROOT_DIR}/WinLibs/SSAGIFv2.dll)
-  set(PHD_COPY_EXTERNAL_ALL ${PHD_COPY_EXTERNAL_ALL}  ${PHD_PROJECT_ROOT_DIR}/WinLibs/SSAGIFv4.dll)
-
-  # FCLib
-  set(PHD_LINK_EXTERNAL     ${PHD_LINK_EXTERNAL}      ${PHD_PROJECT_ROOT_DIR}/cameras/FCLib.lib)
-  set(PHD_LINK_EXTERNAL     ${PHD_LINK_EXTERNAL}      ${PHD_PROJECT_ROOT_DIR}/cameras/FcApi.lib)
-  set(PHD_COPY_EXTERNAL_ALL ${PHD_COPY_EXTERNAL_ALL}  ${PHD_PROJECT_ROOT_DIR}/WinLibs/FCAPI.dll)
 
   # SXUSB
   set(PHD_LINK_EXTERNAL     ${PHD_LINK_EXTERNAL}      ${PHD_PROJECT_ROOT_DIR}/cameras/SXUSB.lib)
@@ -1024,7 +769,10 @@ if(WIN32)
   set(PHD_COPY_EXTERNAL_ALL ${PHD_COPY_EXTERNAL_ALL}  ${PHD_PROJECT_ROOT_DIR}/cameras/moravian/win/lib/gXusb.dll)
   include_directories(${PHD_PROJECT_ROOT_DIR}/cameras/moravian/include)
 
-  set(PHD_COPY_EXTERNAL_ALL ${PHD_COPY_EXTERNAL_ALL}  ${libcurl_dir}/lib/LIBCURL.DLL)
+  set(PHD_COPY_EXTERNAL_ALL ${PHD_COPY_EXTERNAL_ALL}  ${PHD_PROJECT_ROOT_DIR}/WinLibs/msvcr120.dll)
+  set(PHD_COPY_EXTERNAL_ALL ${PHD_COPY_EXTERNAL_ALL}  ${PHD_PROJECT_ROOT_DIR}/WinLibs/msvcp120.dll)
+  set(PHD_COPY_EXTERNAL_ALL ${PHD_COPY_EXTERNAL_ALL}  ${PHD_PROJECT_ROOT_DIR}/WinLibs/vcomp140.dll)
+  set(PHD_COPY_EXTERNAL_ALL ${PHD_COPY_EXTERNAL_ALL}  ${PHD_PROJECT_ROOT_DIR}/WinLibs/vcruntime140.dll)
 
   # ASCOM
   # disabled since not used in the SLN
@@ -1089,30 +837,6 @@ if(APPLE)
   set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${sbigudFramework})
   set(phd2_OSX_FRAMEWORKS ${phd2_OSX_FRAMEWORKS} ${sbigudFramework})
 
-  if(APPLE32)
-    find_library( fcCamFramework
-                  NAMES fcCamFw
-                  PATHS ${thirdparty_dir}/frameworks)
-    if(NOT fcCamFramework)
-      message(FATAL_ERROR "Cannot find the fcCamFw drivers")
-    endif()
-    include_directories(${fcCamFramework})
-    set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${fcCamFramework})
-    add_definitions(-DHAVE_STARFISH_CAMERA=1)
-    set(phd2_OSX_FRAMEWORKS ${phd2_OSX_FRAMEWORKS} ${fcCamFramework})
-  endif()
-
-  if(APPLE32)
-    find_library( dsiMeadeLibrary
-                  NAMES DsiDevice
-                  PATHS ${PHD_PROJECT_ROOT_DIR}/cameras)
-    if(NOT dsiMeadeLibrary)
-      message(FATAL_ERROR "Cannot find the dsiMeadeLibrary drivers")
-    endif()
-    set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${dsiMeadeLibrary})
-    add_definitions(-DHAVE_MEADE_DSI_CAMERA=1)
-  endif()
-
   find_library( asiCamera2
                 NAMES ASICamera2
                 PATHS ${PHD_PROJECT_ROOT_DIR}/cameras/zwolibs/mac)
@@ -1123,19 +847,11 @@ if(APPLE)
   set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${asiCamera2})
   set(phd2_OSX_FRAMEWORKS ${phd2_OSX_FRAMEWORKS} ${asiCamera2})
 
-  if(APPLE32)
-    find_library( SVBCameraSDK
-                  NAMES SVBCameraSDK
-                  PATHS ${PHD_PROJECT_ROOT_DIR}/cameras/svblibs/mac/x86)
-    # SVB SDK v1.10 crashes when the dylib loads on APPLE32 -- disable for now
-    unset(SVBCameraSDK CACHE)
-  else()
-    find_library( SVBCameraSDK
-                  NAMES SVBCameraSDK
-                  PATHS ${PHD_PROJECT_ROOT_DIR}/cameras/svblibs/mac/x64)
-    if(NOT SVBCameraSDK)
-      message(FATAL_ERROR "Cannot find the Svbony SDK libs")
-    endif()
+  find_library( SVBCameraSDK
+                NAMES SVBCameraSDK
+                PATHS ${PHD_PROJECT_ROOT_DIR}/cameras/svblibs/mac/x64)
+  if(NOT SVBCameraSDK)
+    message(FATAL_ERROR "Cannot find the Svbony SDK libs")
   endif()
 
   if(SVBCameraSDK)
@@ -1144,15 +860,9 @@ if(APPLE)
     set(phd2_OSX_FRAMEWORKS ${phd2_OSX_FRAMEWORKS} ${SVBCameraSDK})
   endif()
 
-  if(APPLE32)
-    find_library( qhylib
-                  NAMES qhyccd
-                  PATHS ${PHD_PROJECT_ROOT_DIR}/cameras/qhyccdlibs/mac/x86_32)
-  else()
-    find_library( qhylib
-                  NAMES qhyccd
-                  PATHS ${PHD_PROJECT_ROOT_DIR}/cameras/qhyccdlibs/mac/x86_64)
-  endif()
+  find_library( qhylib
+                NAMES qhyccd
+                PATHS ${PHD_PROJECT_ROOT_DIR}/cameras/qhyccdlibs/mac/x86_64)
   if(NOT qhylib)
     message(FATAL_ERROR "Cannot find the qhy SDK libs")
   endif()
@@ -1160,127 +870,15 @@ if(APPLE)
   set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${qhylib})
   set(phd2_OSX_FRAMEWORKS ${phd2_OSX_FRAMEWORKS} ${qhylib})
 
-  if(APPLE32)
-    find_library( mallincamFramework
-                  NAMES MallincamGuider
-                  PATHS ${thirdparty_dir}/frameworks)
-    if(NOT mallincamFramework)
-      message(FATAL_ERROR "Cannot find the Mallincam framework")
-    endif()
-    include_directories(${mallincamFramework})
-    set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${mallincamFramework})
-    add_definitions(-DHAVE_SKYRAIDER_CAMERA=1)
-    set(phd2_OSX_FRAMEWORKS ${phd2_OSX_FRAMEWORKS} ${mallincamFramework})
+  find_library( toupcam
+                NAMES toupcam
+                PATHS ${PHD_PROJECT_ROOT_DIR}/cameras/toupcam/mac)
+  if(NOT toupcam)
+    message(FATAL_ERROR "Cannot find the toupcam drivers")
   endif()
-
-  if(NOT APPLE32)
-    find_library( toupcam
-                  NAMES toupcam
-                  PATHS ${PHD_PROJECT_ROOT_DIR}/cameras/toupcam/mac)
-    if(NOT toupcam)
-      message(FATAL_ERROR "Cannot find the toupcam drivers")
-    endif()
-    set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${toupcam})
-    add_definitions(-DHAVE_TOUPTEK_CAMERA=1)
-    set(phd2_OSX_FRAMEWORKS ${phd2_OSX_FRAMEWORKS} ${toupcam})
-  endif()
-
-#  libDC does not seem to be used by anything, disabling it (2019/11/20 - remove in next release)
-if(0)
-  #############################################
-  # libDC
-  #
-
-  set(LIBDC libdc1394-2.2.2)
-  set(libdc_root ${thirdparties_deflate_directory}/${LIBDC})
-  if(NOT EXISTS ${libdc_root})
-    # untar the dependency
-    execute_process(
-      COMMAND ${CMAKE_COMMAND} -E tar xzf ${thirdparty_dir}/${LIBDC}.tar.gz
-      WORKING_DIRECTORY ${thirdparties_deflate_directory})
-  endif()
-
-
-  set(libdc_include_dir ${libdc_root})
-  set(libdc_dir ${libdc_include_dir}/dc1394)
-  include_directories(${libdc_dir})
-  include_directories(${libdc_include_dir})
-
-  set(libDC_SRC
-    ${libdc_dir}/dc1394.h
-
-    ${libdc_dir}/bayer.c
-    ${libdc_dir}/camera.h
-
-    ${libdc_dir}/capture.c
-    ${libdc_dir}/capture.h
-
-    ${libdc_dir}/control.c
-    ${libdc_dir}/control.h
-
-    ${libdc_dir}/conversions.c
-    ${libdc_dir}/conversions.h
-
-    ${libdc_dir}/enumeration.c
-
-    ${libdc_dir}/format7.c
-    ${libdc_dir}/format7.h
-
-    ${libdc_dir}/internal.c
-    ${libdc_dir}/internal.h
-
-    ${libdc_dir}/iso.c
-    ${libdc_dir}/iso.h
-
-    ${libdc_dir}/log.c
-    ${libdc_dir}/log.h
-
-    ${libdc_dir}/offsets.h
-    ${libdc_dir}/platform.h
-
-    ${libdc_dir}/register.c
-    ${libdc_dir}/register.h
-    ${libdc_dir}/types.h
-
-    ${libdc_dir}/utils.c
-    ${libdc_dir}/utils.h
-
-    ${libdc_dir}/video.h
-
-    # USB backend
-    ${libdc_dir}/usb/capture.c
-    ${libdc_dir}/usb/control.c
-    ${libdc_dir}/usb/usb.h
-
-    # mac specific
-    ${libdc_dir}/macosx.c
-    ${libdc_dir}/macosx.h
-    ${libdc_dir}/macosx/control.c
-    ${libdc_dir}/macosx/capture.c
-    ${libdc_dir}/macosx/macosx.h
-
-  )
-
-  add_library(dc ${libDC_SRC})
-  target_include_directories(dc PRIVATE ${thirdparty_dir}/include/${LIBDC})
-  set_property(TARGET dc PROPERTY FOLDER "Thirdparty/")
-  # the following line generated too many warnings. The macros are already defined in the config.h of this library
-  # target_compile_definitions(dc PRIVATE HAVE_LIBUSB HAVE_MACOSX)
-  set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} dc)
-endif()
-
-
-
-
-  #############################################
-  # HID Utils
-  #
-  #if(NOT EXISTS "${thirdparty_dir}/HID Utilities Source")
-  #  # untar the dependency
-  #  execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf "${thirdparty_dir}/HID Utilities Source.zip")
-  #endif()
-
-  # library removed
+  set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${toupcam})
+  add_definitions(-DHAVE_TOUPTEK_CAMERA=1)
+  set(phd2_OSX_FRAMEWORKS ${phd2_OSX_FRAMEWORKS} ${toupcam})
 
 
   ### does not work on x64

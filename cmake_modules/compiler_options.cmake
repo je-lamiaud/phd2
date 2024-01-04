@@ -37,16 +37,12 @@ if(APPLE)
   set(CMAKE_MACOSX_RPATH TRUE)
 endif()
 
-# this must appear very early in the file
 if(WIN32)
-  set(CMAKE_GENERATOR_TOOLSET "v120_xp" CACHE STRING "Platform Toolset" FORCE)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif()
 
 # these options allow to use system libraries
-option(USE_SYSTEM_CFITSIO "Enable this option here or in cmake call if you want to use system's cfitsio." OFF)
 option(USE_SYSTEM_LIBUSB "Enable this option here or in cmake call if you want to use system's libUSB." OFF)
-option(USE_SYSTEM_EIGEN3 "Enable this option here or in cmake call if you want to use system's Eigen3." OFF)
 option(USE_SYSTEM_GTEST "Enable this option here or in cmake call if you want to use system's Gtest." OFF)
 option(USE_SYSTEM_LIBINDI "Enable this option here or in cmake call if you want to use system's libindi." OFF)
 

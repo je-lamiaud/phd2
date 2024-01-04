@@ -52,19 +52,15 @@
 # define LE_LXUSB_CAMERA
 # define LE_PARALLEL_CAMERA
 # define LE_SERIAL_CAMERA
-# define MEADE_DSI_CAMERA
 # define MORAVIAN_CAMERA
 # define OPENCV_CAMERA
 # define ORION_DSCI
 # define QGUIDE
 # define QHY_CAMERA
-# define SAC42
 # define SBIG
 # define SBIGROTATOR_CAMERA
 # define SIMULATOR
-# define SSAG
 # define SSPIAG
-# define STARFISH_CAMERA
 # define SVB_CAMERA
 # define SXV
 # define TOUPTEK_CAMERA
@@ -97,15 +93,6 @@
 #  define SBIG
 # endif
 # define SIMULATOR
-# ifdef HAVE_MEADE_DSI_CAMERA
-#  define MEADE_DSI_CAMERA
-# endif
-# ifdef HAVE_SKYRAIDER_CAMERA
-#  define SKYRAIDER_CAMERA
-# endif
-# ifdef HAVE_STARFISH_CAMERA
-#  define STARFISH_CAMERA
-# endif
 # ifdef HAVE_SXV_CAMERA
 #  define SXV
 # endif

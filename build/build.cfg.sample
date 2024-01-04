@@ -6,14 +6,14 @@ WWW_HOST="user@openphdguiding.org"
 # web server document root
 WWW_DIR="/path/to/phd2"
 
-# mac 32-bit build host
-MAC_HOST32="mac32"
-
-# mac 32-bit host phd2 source tree directory
-MAC_DIR32="devel/phd2"
-
-# mac 64-bit build host
-MAC_HOST64="mac64"
+# mac 64-bit build host - pre-Sonoma
+MAC64_HOST="mac64"
 
 # mac 64-bit host phd2 source tree directory
-MAC_DIR64="devel/phd2"
+MAC64_DIR="devel/phd2"
+
+# mac 64-bit build host - Sonoma+
+MAC64S_HOST="mac64s"
+
+# mac 64-bit host phd2 source tree directory
+MAC64S_DIR="devel/phd2"
