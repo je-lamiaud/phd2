@@ -444,39 +444,38 @@ void ScopeINDI::updateProperty(INDI::Property property)
                                                  property.getStateAsString()));
             }
 
-    if (nvp == pulseGuideEW_prop || nvp == pulseGuideNS_prop)
-    {
-        bool notify = false;
-        {
-            wxMutexLocker lck(sync_lock);
-            if (nvp == pulseGuideEW_prop)
+            if (nvp == pulseGuideEW_prop || nvp == pulseGuideNS_prop)
             {
-                if (nvp->s == IPS_BUSY)
-                    guide_active[GUIDE_RA] = true;
-                else if (guide_active[GUIDE_RA])
+                bool notify = false;
                 {
-                    guide_active[GUIDE_RA] = false;
-                    notify = !guide_active[GUIDE_DEC];
+                    wxMutexLocker lck(sync_lock);
+                    if (nvp == pulseGuideEW_prop)
+                    {
+                        if (nvp->s == IPS_BUSY)
+                            guide_active[GUIDE_RA] = true;
+                        else if (guide_active[GUIDE_RA])
+                        {
+                            guide_active[GUIDE_RA] = false;
+                            notify = !guide_active[GUIDE_DEC];
+                        }
+                    }
+                    if (nvp == pulseGuideNS_prop)
+                    {
+                        if (nvp->s == IPS_BUSY)
+                            guide_active[GUIDE_DEC] = true;
+                        else if (guide_active[GUIDE_DEC])
+                        {
+                            guide_active[GUIDE_DEC] = false;
+                            notify = !guide_active[GUIDE_RA];
+                        }
+                    }
                 }
+                if (notify)
+                    sync_cond.Broadcast();
             }
-            if (nvp == pulseGuideNS_prop)
-            {
-                if (nvp->s == IPS_BUSY)
-                    guide_active[GUIDE_DEC] = true;
-                else if (guide_active[GUIDE_DEC])
-                {
-                    guide_active[GUIDE_DEC] = false;
-                    notify = !guide_active[GUIDE_RA];
-            }
-            }
-        }
-        if (notify)
-            sync_cond.Broadcast();
-    }
-}
-
         }
         break;
+
         case INDI_TEXT:
         {
             auto tvp = property.getText();
@@ -486,6 +485,7 @@ void ScopeINDI::updateProperty(INDI::Property property)
                 Debug.Write(wxString::Format("INDI Mount: Receiving Text: %s = %s\n", tvp->name, tvp->tp->text));
         }
         break;
+
         default:
             break;
     }
