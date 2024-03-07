@@ -95,7 +95,6 @@ class ScopeINDI : public Scope, public INDI::BaseClient
         bool     m_ready;
         bool     eod_coord;
 
-        bool     ConnectToDriver(RunInBg *ctx);
         void     ClearStatus();
         void     CheckState();
 
@@ -312,9 +311,20 @@ bool ScopeINDI::Connect()
             //Wait for driver to establish a device connection
             if (scope->connectServer())
             {
-                
-                int i = 0;
-                while (!scope->Connected && i++ < 300) 
+                // Wait for the CONNECTION property
+                wxLongLong msec = wxGetUTCTimeMillis();
+                while (!scope->connection_prop && wxGetUTCTimeMillis() - msec < 15 * 1000)
+                {
+                    if (IsCanceled())
+                        break;
+                    wxMilliSleep(100);
+                }
+                // Attempt device connection when available
+                if (scope->connection_prop)
+                    // If already connected, this will return immediately
+                    scope->connectDevice(scope->INDIMountName.mb_str(wxConvUTF8));
+
+                while (!scope->Connected && wxGetUTCTimeMillis() - msec < 30 * 1000) 
                 {
                     if (IsCanceled())
                         break;
@@ -339,58 +349,6 @@ bool ScopeINDI::Disconnect()
     ClearStatus();
     Scope::Disconnect();
     return false;
-}
-
-bool ScopeINDI::ConnectToDriver(RunInBg *r)
-{
-    m_modal = true;
-
-    // set option to receive only the messages, no blob
-    setBLOBMode(B_NEVER, INDIMountName.mb_str(wxConvUTF8), nullptr);
-
-    // wait for the device port property
-
-    wxLongLong msec = wxGetUTCTimeMillis();
-
-    // Connect the mount device
-    while (!connection_prop && wxGetUTCTimeMillis() - msec < 15 * 1000)
-    {
-        if (r->IsCanceled())
-        {
-            m_modal = false;
-            return false;
-        }
-
-        wxMilliSleep(20);
-    }
-    if (!connection_prop)
-    {
-        r->SetErrorMsg(_("Connection timed-out"));
-        m_modal = false;
-        return false;
-    }
-
-    connectDevice(INDIMountName.mb_str(wxConvUTF8));
-
-    msec = wxGetUTCTimeMillis();
-    while (m_modal && wxGetUTCTimeMillis() - msec < 30 * 1000)
-    {
-        if (r->IsCanceled())
-        {
-            m_modal = false;
-            return false;
-        }
-
-        wxMilliSleep(20);
-    }
-
-    if (!m_ready)
-    {
-        r->SetErrorMsg(_("Connection timed-out"));
-    }
-
-    m_modal = false;
-    return m_ready;
 }
 
 void ScopeINDI::serverDisconnected(int exit_code)
@@ -626,11 +584,6 @@ void ScopeINDI::newProperty(INDI::Property property)
     else if ((strcmp(PropName, "TIME_LST") == 0) && Proptype == INDI_NUMBER)
     {
         SiderealTime_prop = property.getNumber();
-    }
-    else if ((strcmp(PropName, "DRIVER_INFO") == 0) && Proptype == INDI_TEXT)
-    {
-        if (!Connected)
-            connectDevice(property.getDeviceName());
     }
 
     CheckState();

@@ -145,7 +145,6 @@ class CameraINDI : public GuideCamera, public INDI::BaseClient
         bool     INDICameraForceExposure;
         wxRect   m_roi;
 
-        bool     ConnectToDriver(RunInBg *ctx);
         void     SetCCDdevice();
         void     ClearStatus();
         void     CheckState();
@@ -169,7 +168,6 @@ class CameraINDI : public GuideCamera, public INDI::BaseClient
         void updateProperty(INDI::Property property) override;
         void removeProperty(INDI::Property property) override {}
         void newMessage(INDI::BaseDevice dp, int messageID) override;
-        void serverConnected() override;
         void serverDisconnected(int exit_code) override;
 
 
@@ -594,9 +592,6 @@ void CameraINDI::newProperty(INDI::Property property)
     {
         if (camera_device && (camera_device.getDriverInterface() & INDI::BaseDevice::GUIDER_INTERFACE))
             m_hasGuideOutput = true; // Device supports guiding
-
-        if (!Connected)
-            connectDevice(camera_device.getDeviceName());
     }
     else if (PropName == "TELESCOPE_TIMED_GUIDE_NS" && Proptype == INDI_NUMBER)
     {
@@ -651,9 +646,20 @@ bool CameraINDI::Connect(const wxString& camId)
             //Wait for driver to establish a device connection
             if (cam->connectServer())
             {
-                
-                int i = 0;
-                while (!cam->Connected && i++ < 300) 
+                // Wait for the CONNECTION property
+                wxLongLong msec = wxGetUTCTimeMillis();
+                while (!cam->connection_prop && wxGetUTCTimeMillis() - msec < 15 * 1000)
+                {
+                    if (IsCanceled())
+                        break;
+                    wxMilliSleep(100);
+                }
+                // Attempt device connection when available
+                if (cam->connection_prop)
+                    // If already connected, this will return immediately
+                    cam->connectDevice(cam->INDICameraName.mb_str(wxConvUTF8));
+
+                while (!cam->Connected && wxGetUTCTimeMillis() - msec < 30 * 1000) 
                 {
                     if (IsCanceled())
                         break;
@@ -682,83 +688,6 @@ bool CameraINDI::Disconnect()
     // Disconnect from server (no-op if not connected)
     disconnectServer();
     return false;
-}
-
-bool CameraINDI::ConnectToDriver(RunInBg *r)
-{
-    modal = true;
-
-    // wait for the device port property
-
-    wxLongLong msec = wxGetUTCTimeMillis();
-
-    // Connect the camera device
-    while (!connection_prop && wxGetUTCTimeMillis() - msec < 15 * 1000)
-    {
-        if (r->IsCanceled())
-        {
-            modal = false;
-            return false;
-        }
-
-        wxMilliSleep(20);
-    }
-    if (!connection_prop)
-    {
-        r->SetErrorMsg(_("connection timed-out"));
-        modal = false;
-        return false;
-    }
-
-    connectDevice(INDICameraName.mb_str(wxConvUTF8));
-
-    msec = wxGetUTCTimeMillis();
-    while (modal && wxGetUTCTimeMillis() - msec < 30 * 1000)
-    {
-        if (r->IsCanceled())
-        {
-            modal = false;
-            return false;
-        }
-
-        wxMilliSleep(20);
-    }
-    if (!ready)
-    {
-        r->SetErrorMsg(_("Connection timed-out"));
-    }
-
-    modal = false;
-    return ready;
-}
-
-void CameraINDI::serverConnected()
-{
-    // After connection to the server
-
-    //    struct ConnectInBg : public ConnectCameraInBg
-    //    {
-    //        CameraINDI *cam;
-    //        ConnectInBg(CameraINDI *cam_) : cam(cam_) { }
-    //        bool Entry()
-    //        {
-    //            return !cam->ConnectToDriver(this);
-    //        }
-    //    };
-    //    ConnectInBg bg(this);
-
-    //    if (bg.Run())
-    //    {
-    //        Debug.Write(wxString::Format("INDI Camera bg connection failed canceled=%d\n", bg.IsCanceled()));
-    //        CamConnectFailed(wxString::Format(_("Cannot connect to camera %s: %s"), INDICameraName, bg.GetErrorMsg()));
-    //        Connected = false;
-    //        Disconnect();
-    //    }
-    //    else
-    //    {
-    //        Debug.Write("INDI Camera bg connection succeeded\n");
-    //        Connected = true;
-    //    }
 }
 
 void CameraINDI::serverDisconnected(int exit_code)
