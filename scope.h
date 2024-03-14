@@ -272,7 +272,7 @@ public:
     bool IsDecDrifting() const override;
 
 private:
-    // functions with an implemenation in Scope that cannot be over-ridden
+    // functions with an implementation in Scope that cannot be over-ridden
     // by a subclass
     MOVE_RESULT MoveAxis(GUIDE_DIRECTION direction, int durationMs, unsigned int moveOptions, MoveResultInfo *moveResultInfo, bool blocking = true) final;
     MOVE_RESULT MoveAxis(GUIDE_DIRECTION direction, int duration, unsigned int moveOptions) final;

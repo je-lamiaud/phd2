@@ -5292,6 +5292,18 @@ msgstr ""
 "Laissez coché pour guider. Décochez pour désactiver toutes les commandes de "
 "guidage et permettre à la monture de fonctionner non-guidée.="
 
+#: mount.cpp:552
+msgid "Allow simultaneous RA and Dec corrections"
+msgstr "Autoriser les corrections simultanées en AD et Dec"
+
+#: mount.cpp:554
+msgid ""
+"When checked, RA and Dec correction moves will take place in parallel, if "
+"the mount supports it. Use this with care."
+msgstr ""
+"Une fois coché, les corrections AD et Dec seront effectuées en parallèle, "
+"si la monture le supporte. A utiliser avec précaution."
+
 #: mount.cpp:929
 #, c-format
 msgid "CAL: %s(%.f,%.f)->%s(%.f,%.f)"

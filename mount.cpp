@@ -549,6 +549,10 @@ ConfigDialogCtrlSet(pParent, pAdvancedDialog, CtrlMap)
             AddCtrl(CtrlMap, AD_cbEnableGuiding, m_pEnableGuide,
                 _("Keep this checked for guiding. Un-check to disable all mount guide commands and allow the mount to run un-guided"));
         }
+        m_pConcurrentRaDecGuiding = new wxCheckBox(GetParentWindow(AD_cbConcurrentRaDecGuiding), wxID_ANY, _("Allow simultaneous RA and Dec corrections"));
+        AddCtrl(CtrlMap, AD_cbConcurrentRaDecGuiding, m_pConcurrentRaDecGuiding,
+                _("When checked, RA and Dec correction moves will take place in parallel, if the mount supports it. Use this with care."));
+
     }
 }
 
@@ -560,6 +564,7 @@ void MountConfigDialogCtrlSet::LoadValues()
         m_pClearCalibration->SetValue(false);
         m_pEnableGuide->SetValue(m_pMount->GetGuidingEnabled());
     }
+    m_pConcurrentRaDecGuiding->SetValue(m_pMount->GetConcurrentRaDecGuiding());
 }
 
 void MountConfigDialogCtrlSet::UnloadValues()
@@ -574,6 +579,7 @@ void MountConfigDialogCtrlSet::UnloadValues()
 
         m_pMount->SetGuidingEnabled(m_pEnableGuide->GetValue());
     }
+    m_pMount->SetConcurrentRaDecGuiding(m_pConcurrentRaDecGuiding->GetValue());
 }
 
 GUIDE_ALGORITHM Mount::GetXGuideAlgorithmSelection() const
@@ -661,6 +667,18 @@ void Mount::SetGuidingEnabled(bool guidingEnabled)
             // re-enabled
             DeferPulseLimitAlertCheck();
         }
+    }
+}
+
+void Mount::SetConcurrentRaDecGuiding(bool allowed)
+{
+    if (allowed != m_concurrentRaDecGuiding)
+    {
+        const char *s = "ConcurrentRaDecGuiding";
+        Debug.Write(wxString::Format("%s: %d\n", s, allowed));
+        pFrame->NotifyGuidingParam(s, allowed);
+        pConfig->Profile.SetBoolean("/mount/ConcurrentRaDecGuiding", allowed);
+        m_concurrentRaDecGuiding = allowed;
     }
 }
 
@@ -842,6 +860,7 @@ Mount::Mount()
     m_pYGuideAlgorithm = nullptr;
     m_pXGuideAlgorithm = nullptr;
     m_guidingEnabled = true;
+    m_concurrentRaDecGuiding = pConfig->Profile.GetBoolean("/mount/ConcurrentRaDecGuiding", false);
 
     m_backlashComp = nullptr;
     m_lastStep.mount = this;
@@ -1020,7 +1039,7 @@ Mount::MOVE_RESULT Mount::MoveOffset(GuiderOffset *ofs, unsigned int moveOptions
 
         int requestedXAmount = ROUND(fabs(xDistance / m_xRate));
         MoveResultInfo xMoveResult;
-        result = MoveAxis(xDirection, requestedXAmount, moveOptions, &xMoveResult, false);
+        result = MoveAxis(xDirection, requestedXAmount, moveOptions, &xMoveResult, !m_concurrentRaDecGuiding);
 
         MoveResultInfo yMoveResult;
         if (result != MOVE_ERROR_SLEWING && result != MOVE_ERROR_AO_LIMIT_REACHED)
@@ -1030,10 +1049,12 @@ Mount::MOVE_RESULT Mount::MoveOffset(GuiderOffset *ofs, unsigned int moveOptions
             if (m_backlashComp)
                 m_backlashComp->ApplyBacklashComp(moveOptions, yDistance, &requestedYAmount);
 
-            result = MoveAxis(yDirection, requestedYAmount, moveOptions, &yMoveResult, false);
+            result = MoveAxis(yDirection, requestedYAmount, moveOptions, &yMoveResult, !m_concurrentRaDecGuiding);
         }
 
-        WaitMoveCompletion();
+        if (m_concurrentRaDecGuiding)
+            // Previous MoveAxis calls were non blocking, it is time to wait
+            WaitMoveCompletion();
 
         // Record the info about the guide step. The info will be picked up back in the main UI thread.
         // We don't want to do anything with the info here in the worker thread since UI operations are
@@ -1421,7 +1442,6 @@ bool Mount::SynchronousOnly()
 void Mount::WaitMoveCompletion()
 {
 }
-
 
 bool Mount::HasSetupDialog() const
 {
@@ -1852,11 +1872,12 @@ wxString Mount::GetSettingsSummary() const
     // return a loggable summary of current mount settings
 
     wxString s =
-        wxString::Format("%s = %s,%s connected, guiding %s, ",
+        wxString::Format("%s = %s,%s connected, guiding %s, %s Ra/Dec",
                          IsStepGuider() ? "AO" : "Mount",
                          m_Name,
                          IsConnected() ? "" : " not",
-                         m_guidingEnabled ? "enabled" : "disabled");
+                         m_guidingEnabled ? "enabled" : "disabled",
+                         m_concurrentRaDecGuiding ? "concurrent" : "sequential");
 
     if (pPointingSource && pPointingSource->IsConnected() &&
         pPointingSource->CanReportPosition() &&

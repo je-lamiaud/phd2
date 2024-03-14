@@ -155,6 +155,7 @@ class MountConfigDialogCtrlSet : public ConfigDialogCtrlSet
     Mount* m_pMount;
     wxCheckBox *m_pClearCalibration;
     wxCheckBox *m_pEnableGuide;
+    wxCheckBox *m_pConcurrentRaDecGuiding;
 
 public:
     MountConfigDialogCtrlSet(wxWindow *pParent, Mount *pMount, AdvancedDialog* pAdvancedDialog, BrainCtrlIdMap& CtrlMap);
@@ -176,6 +177,7 @@ class Mount : public wxMessageBoxProxy
 
 protected:
     bool m_guidingEnabled;
+    bool m_concurrentRaDecGuiding;
 
     GuideAlgorithm *m_pXGuideAlgorithm;
     GuideAlgorithm *m_pYGuideAlgorithm;
@@ -268,6 +270,8 @@ public:
     bool FlipCalibration();
     bool GetGuidingEnabled() const;
     void SetGuidingEnabled(bool guidingEnabled);
+    bool GetConcurrentRaDecGuiding() const;
+    void SetConcurrentRaDecGuiding(bool allowed);
     virtual void DeferPulseLimitAlertCheck();
 
     virtual MOVE_RESULT MoveOffset(GuiderOffset *guiderOffset, unsigned int moveOptions);
@@ -395,6 +399,11 @@ inline double Mount::xAngle() const
 inline bool Mount::GetGuidingEnabled() const
 {
     return m_guidingEnabled;
+}
+
+inline bool Mount::GetConcurrentRaDecGuiding() const
+{
+    return m_concurrentRaDecGuiding;
 }
 
 inline bool Mount::IsBusy() const

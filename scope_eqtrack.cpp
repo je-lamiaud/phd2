@@ -394,7 +394,7 @@ Mount::MOVE_RESULT ScopeEQTrack::Guide(GUIDE_DIRECTION direction, int duration)
 				value &= ~K_Speed_Switch; // Fast move if option pressed
 			break;
 		default:
-			value |= K_Speed_Switch; // Always a slow move
+			value |= K_Speed_Switch; // Always a slow move when guiding
 			break;
 	}
 
