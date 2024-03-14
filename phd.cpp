@@ -31,6 +31,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#include <signal.h>
 
 #include "phd.h"
 
@@ -128,6 +129,10 @@ PhdApp::PhdApp()
 #ifdef  __linux__
     XInitThreads();
 #endif // __linux__
+
+    // INDI behaves badly with sockets, leading to occasional SIGPIPE
+    // We need to ignore this signal to avoid application crash
+    signal(SIGPIPE, SIG_IGN);
 
     Bind(EXEC_IN_MAIN_THREAD_EVENT, [](ExecFuncThreadEvent& evt) { evt.func(); });
 };
