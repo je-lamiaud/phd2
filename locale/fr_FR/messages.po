@@ -8456,6 +8456,10 @@ msgstr "Sélection de la Monture Auxiliaire INDI"
 msgid "INDI Mount Selection"
 msgstr "Sélection de la Monture INDI"
 
+#: scope_indi.cpp:360
+msgid "INDI mount lacks some required properties"
+msgstr "Il manque des propriétés requises dans la Monture INDI"
+
 #: scope_indi.cpp:424
 msgid "INDI mount was disconnected"
 msgstr "La monture INDI a été déconnectée"

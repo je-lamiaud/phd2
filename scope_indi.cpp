@@ -90,9 +90,7 @@ class ScopeINDI : public Scope, public INDI::BaseClient
         long     INDIport;
         wxString INDIhost;
         wxString INDIMountName;
-        bool     Connected {false};
-        bool     m_modal;
-        bool     m_ready;
+        bool     DeviceConnected {false};
         bool     eod_coord;
 
         void     ClearStatus();
@@ -184,7 +182,7 @@ void ScopeINDI::ClearStatus()
     scope_port = nullptr;
     pierside_prop = nullptr;
     // reset connection status
-    m_ready = false;
+    DeviceConnected = false;
     eod_coord = false;
     guide_active[GUIDE_RA] = false;
     guide_active[GUIDE_DEC] = false;
@@ -195,41 +193,61 @@ void ScopeINDI::CheckState()
 {
     // Check if the device has all the required properties
 
-    if (!IsConnected())
+    if (!connection_prop)
         return;
 
-    if (m_ready)
-        return;
-
-    bool isAuxMount = pFrame->pGearDialog->AuxScope() == this;
-
-    if (isAuxMount)
+    ISwitch *connectswitch = IUFindSwitch(connection_prop, "CONNECT");
+    DeviceConnected = connectswitch->s == ISS_ON;
+    if (IsConnected())
     {
-        // aux mount just needs the coord prop
-        if (!coord_prop)
-            return;
+        if (!DeviceConnected)
+        {
+           ClearStatus();
+
+           // call Disconnect in the main thread since that will
+           // want to join the INDI worker thread which is
+           // probably the current thread
+
+           PhdApp::ExecInMainThread(
+              [this]()
+                 {
+                    pFrame->Alert(_("INDI mount was disconnected"));
+                    Disconnect();
+                 });
+           return;
+        }
     }
     else
     {
-        // guiding mount requires guiding props
-        if (!(MotionRate_prop && moveNS_prop && moveEW_prop) &&
-                !(pulseGuideNS_prop && pulseGuideEW_prop))
+        bool isAuxMount = pFrame->pGearDialog->AuxScope() == this;
+
+        if (isAuxMount)
         {
-            return;
+            // aux mount just needs the coord prop
+            if (!coord_prop)
+                return;
         }
+        else
+        {
+            // guiding mount requires guiding props
+            if (!(MotionRate_prop && moveNS_prop && moveEW_prop) &&
+                !(pulseGuideNS_prop && pulseGuideEW_prop))
+            {
+                return;
+            }
+        }
+
+        Debug.Write(wxString::Format("INDI Telescope%s is ready "
+                                     "MotionRate=%d moveNS=%d moveEW=%d guideNS=%d guideEW=%d coord=%d\n",
+                                     isAuxMount ? " (AUX)" : "",
+                                     MotionRate_prop ? 1 : 0, moveNS_prop ? 1 : 0, moveEW_prop ? 1 : 0,
+                                     pulseGuideNS_prop ? 1 : 0, pulseGuideEW_prop ? 1 : 0,
+                                     coord_prop ? 1 : 0));
+
+        if (DeviceConnected)
+            // We have all required properties, and the device is connected
+            Scope::Connect();
     }
-
-    Debug.Write(wxString::Format("INDI Telescope%s is ready "
-                                 "MotionRate=%d moveNS=%d moveEW=%d guideNS=%d guideEW=%d coord=%d\n",
-                                 isAuxMount ? " (AUX)" : "",
-                                 MotionRate_prop ? 1 : 0, moveNS_prop ? 1 : 0, moveEW_prop ? 1 : 0,
-                                 pulseGuideNS_prop ? 1 : 0, pulseGuideEW_prop ? 1 : 0,
-                                 coord_prop ? 1 : 0));
-
-    m_ready = true;
-
-    if (m_modal)
-        m_modal = false;
 }
 
 bool ScopeINDI::HasSetupDialog() const
@@ -287,9 +305,6 @@ bool ScopeINDI::Connect()
         SetupDialog();
     }
 
-    if (isServerConnected())
-        return false;
-
     Debug.Write(wxString::Format("INDI Mount connecting to device [%s]\n", INDIMountName));
 
     // define server to connect to.
@@ -308,8 +323,8 @@ bool ScopeINDI::Connect()
         bool Entry()
         {
 
-            //Wait for driver to establish a device connection
-            if (scope->connectServer())
+            // Wait for driver to establish a device connection
+            if (scope->isServerConnected() || scope->connectServer())
             {
                 // Wait for the CONNECTION property
                 wxLongLong msec = wxGetUTCTimeMillis();
@@ -324,7 +339,7 @@ bool ScopeINDI::Connect()
                     // If already connected, this will return immediately
                     scope->connectDevice(scope->INDIMountName.mb_str(wxConvUTF8));
 
-                while (!scope->Connected && wxGetUTCTimeMillis() - msec < 30 * 1000) 
+                while (!scope->IsConnected() && wxGetUTCTimeMillis() - msec < 30 * 1000) 
                 {
                     if (IsCanceled())
                         break;
@@ -334,12 +349,17 @@ bool ScopeINDI::Connect()
             }
 
             // We need to return FALSE if we are successful
-            return !scope->Connected;
+            return !scope->IsConnected();
 
         }
     };
 
-    return ConnectInBg(this).Run();    
+    bool res = ConnectInBg(this).Run();
+
+    if (DeviceConnected && !IsConnected())
+        pFrame->Alert(_("INDI mount lacks some required properties"));
+
+    return res;    
 }
 
 bool ScopeINDI::Disconnect()
@@ -379,6 +399,7 @@ void ScopeINDI::newDevice(INDI::BaseDevice dp)
 
 void ScopeINDI::updateProperty(INDI::Property property)
 {
+    Debug.Write(wxString::Format("INDI Mount %s: Updated property: %s\n", INDIMountName, property.getName()));
     switch (property.getType())
     {
         case INDI_SWITCH:
@@ -389,34 +410,7 @@ void ScopeINDI::updateProperty(INDI::Property property)
                 Debug.Write(wxString::Format("INDI Mount: Receiving Switch: %s = %i\n", svp->name, svp->sp->s));
 
             if (strcmp(svp->name, "CONNECTION") == 0)
-            {
-                ISwitch *connectswitch = IUFindSwitch(svp, "CONNECT");
-
-                if (connectswitch->s == ISS_ON)
-                {
-                    Connected = true;
-                    Scope::Connect();
-                }
-                else
-                {
-                    if (m_ready)
-                    {
-                        ClearStatus();
-
-                        // call Disconnect in the main thread since that will
-                        // want to join the INDI worker thread which is
-                        // probably the current thread
-
-                        PhdApp::ExecInMainThread(
-                            [this]()
-                        {
-                            pFrame->Alert(_("INDI mount was disconnected"));
-                            Connected = false;
-                            Disconnect();
-                        });
-                    }
-                }
-            }
+                CheckState();
         }
         break;
 
@@ -498,7 +492,7 @@ void ScopeINDI::newProperty(INDI::Property property)
     auto PropName = property.getName();
     auto Proptype = property.getType();
 
-    Debug.Write(wxString::Format("INDI Mount: Received property: %s\n", PropName));
+    Debug.Write(wxString::Format("INDI Mount %s: Received property: %s\n", INDIMountName, PropName));
 
     if ((strcmp(PropName, "EQUATORIAL_EOD_COORD") == 0) && Proptype == INDI_NUMBER)
     {
@@ -568,14 +562,7 @@ void ScopeINDI::newProperty(INDI::Property property)
     }
     else if (strcmp(PropName, "CONNECTION") == 0 && Proptype == INDI_SWITCH)
     {
-        // Check the value here in case the device is already connected
         connection_prop = property.getSwitch();
-        ISwitch *connectswitch = IUFindSwitch(connection_prop, "CONNECT");
-        Connected = connectswitch->s == ISS_ON;
-        if (Connected)
-        {
-            Scope::Connect();
-        }
     }
     else if ((strcmp(PropName, "GEOGRAPHIC_COORD") == 0) && Proptype == INDI_NUMBER)
     {
