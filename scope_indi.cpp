@@ -588,7 +588,8 @@ Mount::MOVE_RESULT ScopeINDI::Guide(GUIDE_DIRECTION direction, int duration)
         if (INDIConfig::Verbose())
             Debug.Write(wxString::Format("INDI Mount: timed pulse dir %d dur %d ms\n", direction, duration));
 
-        switch (direction) {
+        switch (direction)
+        {
         case EAST:
         case WEST:
             axis = GUIDE_RA;
