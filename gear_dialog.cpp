@@ -398,12 +398,42 @@ static void LoadCameras(wxChoice *cameras)
 
 static void LoadMounts(wxChoice *mounts)
 {
-    LoadChoices(mounts, Scope::MountList());
+    wxArrayString mountList = Scope::MountList();
+    // Trust our profile INDI mount selection, if none provided by Scope
+    wxString profileMount = pConfig->Profile.GetString("/scope/LastMenuChoice", "");
+    if (profileMount.Contains("INDI"))
+    {
+        for (unsigned int i = 0; i < mountList.size(); i++)
+        {
+            if (mountList[i].Contains("INDI") && !mountList[i].Contains("["))
+            {
+                mountList[i] = profileMount;
+                break;
+            }
+        }
+    }
+
+    LoadChoices(mounts, mountList);
 }
 
 static void LoadAuxMounts(wxChoice *auxMounts)
 {
-    LoadChoices(auxMounts, Scope::AuxMountList());
+    wxArrayString auxMountList = Scope::AuxMountList();
+    // Trust our profile INDI aux mount selection, if none provided by Scope
+    wxString profileAuxMount = pConfig->Profile.GetString("/scope/LastAuxMenuChoice", "");
+    if (profileAuxMount.Contains("INDI"))
+    {
+        for (unsigned int i = 0; i < auxMountList.size(); i++)
+        {
+            if (auxMountList[i].Contains("INDI") && !auxMountList[i].Contains("["))
+            {
+                auxMountList[i] = profileAuxMount;
+                break;
+            }
+        }
+    }
+
+    LoadChoices(auxMounts, auxMountList);
 }
 
 static void LoadAOs(wxChoice *aos)
@@ -1367,6 +1397,13 @@ void GearDialog::OnButtonSetupScope(wxCommandEvent& event)
     wxString selection = m_pScopes->GetStringSelection();
     LoadMounts(m_pScopes);
     SetMatchingSelection(m_pScopes, selection);
+    // And update the profile, also if scope name changed
+    selection = m_pScopes->GetStringSelection();  // New name after load / setMatching
+    if (pConfig->Profile.GetString("/scope/LastMenuChoice", wxEmptyString) != selection)
+    {
+        pConfig->Profile.SetString("/scope/LastMenuChoice", selection);
+        m_flushConfig = true;
+    }
 }
 
 void GearDialog::OnButtonSetupAuxScope(wxCommandEvent& event)
@@ -1377,6 +1414,13 @@ void GearDialog::OnButtonSetupAuxScope(wxCommandEvent& event)
     wxString selection = m_pAuxScopes->GetStringSelection();
     LoadAuxMounts(m_pAuxScopes);
     SetMatchingSelection(m_pAuxScopes, selection);
+    // And update the profile, also if scope name changed
+    selection = m_pAuxScopes->GetStringSelection();  // New name after load / setMatching
+    if (pConfig->Profile.GetString("/scope/LastAuxMenuChoice", wxEmptyString) != selection)
+    {
+        pConfig->Profile.SetString("/scope/LastAuxMenuChoice", selection);
+        m_flushConfig = true;
+    }
 }
 
 void GearDialog::OnButtonConnectScope(wxCommandEvent& event)

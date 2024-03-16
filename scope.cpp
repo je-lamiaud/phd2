@@ -64,6 +64,8 @@ static double NUDGE_TOLERANCE = 2.0;
 const double Scope::DEC_COMP_LIMIT = M_PI / 2.0 * 2.0 / 3.0;   // 60 degrees
 const double Scope::DEFAULT_MOUNT_GUIDE_SPEED = 0.5;
 
+wxString Scope::lastIndiMountName = wxString();
+
 Scope::Scope()
     :
     m_maxDecDuration(0),
@@ -319,10 +321,10 @@ static int CompareNoCase(const wxString& first, const wxString& second)
     return first.CmpNoCase(second);
 }
 
-static wxString INDIMountName()
+wxString Scope::INDIMountName()
 {
-    wxString val = pConfig->Profile.GetString("/indi/INDImount", wxEmptyString);
-    return val.empty() ? _("INDI Mount") : wxString::Format(_("INDI Mount [%s]"), val);
+    return Scope::lastIndiMountName.empty() ? _("INDI Mount")
+                                            : wxString::Format(_("INDI Mount [%s]"), Scope::lastIndiMountName);
 }
 
 wxArrayString Scope::MountList()
@@ -415,7 +417,7 @@ Scope *Scope::Factory(const wxString& choice)
 #endif
 #ifdef GUIDE_INDI
         else if (choice.Contains(_("INDI")))
-            pReturn = INDIScopeFactory::MakeINDIScope();
+            pReturn = INDIScopeFactory::MakeINDIScope(choice);
 #endif
         else if (choice == _("None"))
             pReturn = nullptr;

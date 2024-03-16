@@ -34,6 +34,9 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#include <string>
+#include <regex>
+
 #include "phd.h"
 
 #ifdef GUIDE_INDI
@@ -106,7 +109,7 @@ class ScopeINDI : public Scope, public INDI::BaseClient
         void serverDisconnected(int exit_code) override;
 
     public:
-        ScopeINDI();
+        ScopeINDI(const wxString& name);
         ~ScopeINDI();
 
         bool     Connect() override;
@@ -147,7 +150,7 @@ class ScopeINDI : public Scope, public INDI::BaseClient
         PierSide SideOfPier() override;
 };
 
-ScopeINDI::ScopeINDI()
+ScopeINDI::ScopeINDI(const wxString& name)
     :
     sync_cond(sync_lock)
 {
@@ -155,7 +158,8 @@ ScopeINDI::ScopeINDI()
     // load the values from the current profile
     INDIhost = pConfig->Profile.GetString("/indi/INDIhost", _T("localhost"));
     INDIport = pConfig->Profile.GetLong("/indi/INDIport", 7624);
-    INDIMountName = pConfig->Profile.GetString("/indi/INDImount", _T("INDI Mount"));
+    INDIMountName = name;
+    lastIndiMountName = name;
     m_Name = wxString::Format("INDI Mount [%s]", INDIMountName);
 }
 
@@ -290,7 +294,7 @@ void ScopeINDI::SetupDialog()
         INDIMountName = indiDlg.INDIDevName;
         pConfig->Profile.SetString("/indi/INDIhost", INDIhost);
         pConfig->Profile.SetLong("/indi/INDIport", INDIport);
-        pConfig->Profile.SetString("/indi/INDImount", INDIMountName);
+        lastIndiMountName = INDIMountName;
         m_Name = wxString::Format("INDI Mount [%s]", INDIMountName);
     }
 
@@ -944,9 +948,26 @@ bool ScopeINDI::HasNonGuiMove()
     return true;
 }
 
-Scope *INDIScopeFactory::MakeINDIScope()
+Scope *INDIScopeFactory::MakeINDIScope(const wxString& choice)
 {
-    return new ScopeINDI();
+    const std::string name = choice.ToStdString();
+    const std::regex indiDeviceExtract(".*INDI.*\\[(.+)\\]");
+    std::smatch nameMatch;
+    std::string deviceName = "";
+    if (std::regex_match(name, nameMatch, indiDeviceExtract))
+    {
+        if (nameMatch.size() == 2)
+        {
+            std::ssub_match scopeName = nameMatch[1];
+            deviceName = scopeName.str();
+            Debug.Write(wxString::Format("INDI Mount: MakeINDIScope %s\n", deviceName));
+        }
+    }
+
+    if (deviceName.empty())
+       Debug.Write(wxString::Format("INDI Mount: MakeINDIScope has no name match for %s\n", choice));
+
+    return new ScopeINDI(wxString(deviceName));
 }
 
 #endif /* GUIDE_INDI */

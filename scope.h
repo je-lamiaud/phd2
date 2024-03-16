@@ -153,6 +153,8 @@ public:
 
     // Things related to the Advanced Config Dialog
 protected:
+    static wxString lastIndiMountName;
+
     class ScopeConfigDialogPane : public MountConfigDialogPane
     {
         Scope *m_pScope;
@@ -272,6 +274,8 @@ public:
     bool IsDecDrifting() const override;
 
 private:
+    static wxString INDIMountName();
+
     // functions with an implementation in Scope that cannot be over-ridden
     // by a subclass
     MOVE_RESULT MoveAxis(GUIDE_DIRECTION direction, int durationMs, unsigned int moveOptions, MoveResultInfo *moveResultInfo, bool blocking = true) final;

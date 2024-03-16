@@ -41,7 +41,7 @@
 class INDIScopeFactory
 {
     public:
-        static Scope *MakeINDIScope();
+        static Scope *MakeINDIScope(const wxString& choice);
 };
 
 #endif
