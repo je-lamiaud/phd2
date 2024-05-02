@@ -48,7 +48,6 @@
 #include <libindi/basedevice.h>
 #include <libindi/indiproperty.h>
 
-
 class CapturedFrame
 {
     public:
@@ -169,7 +168,6 @@ class CameraINDI : public GuideCamera, public INDI::BaseClient
         void removeProperty(INDI::Property property) override {}
         void newMessage(INDI::BaseDevice dp, int messageID) override;
         void serverDisconnected(int exit_code) override;
-
 
     public:
         CameraINDI();
@@ -456,15 +454,11 @@ void CameraINDI::updateProperty(INDI::Property property)
                     StackStream(&cf);
                 }
             }
-
-
         }
         break;
         default:
             break;
     }
-
-
 }
 
 void CameraINDI::newMessage(INDI::BaseDevice dp, int messageID)
@@ -474,7 +468,6 @@ void CameraINDI::newMessage(INDI::BaseDevice dp, int messageID)
     if (INDIConfig::Verbose())
         Debug.Write(wxString::Format("INDI Camera Received message: %s\n", dp.messageQueue(messageID)));
 }
-
 
 void CameraINDI::newProperty(INDI::Property property)
 {
@@ -634,7 +627,7 @@ bool CameraINDI::Connect(const wxString& camId)
     watchDevice(INDICameraName.mb_str(wxConvUTF8));
 
     Debug.Write(wxString::Format("Waiting for 30s for [%s] to connect...\n", INDICameraName));
-    
+
     /* Wait in background for driver to establish a device connection */
     struct ConnectInBg : public ConnectCameraInBg
     {
@@ -642,8 +635,7 @@ bool CameraINDI::Connect(const wxString& camId)
         ConnectInBg(CameraINDI *cam_) : cam(cam_) { }
         bool Entry()
         {
-
-            //Wait for driver to establish a device connection
+            // Wait for driver to establish a device connection
             if (cam->connectServer())
             {
                 // Wait for the CONNECTION property
@@ -663,10 +655,9 @@ bool CameraINDI::Connect(const wxString& camId)
                 {
                     if (IsCanceled())
                         break;
-                    
+
                     wxMilliSleep(100);
                 }
-                
             }
 
             // We need to return FALSE if we are successful

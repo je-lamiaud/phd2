@@ -114,6 +114,10 @@ wxSize UNDEFINED_FRAME_SIZE = wxSize(0, 0);
 # include "cam_vfw.h"
 #endif
 
+#if defined (OGMA_CAMERA)
+# include "cam_ogma.h"
+#endif
+
 #if defined (OPENCV_CAMERA)
 # include "cam_opencv.h"
 #endif
@@ -332,6 +336,9 @@ wxArrayString GuideCamera::GuideCameraList()
 #if defined (FIREWIRE_CAMERA)
     CameraList.Add(_T("The Imaging Source (DCAM Firewire)"));
 #endif
+#if defined (OGMA_CAMERA)
+    CameraList.Add(_T("OGMA Camera"));
+#endif
 #if defined (OPENCV_CAMERA)
     CameraList.Add(_T("OpenCV webcam 1"));
     CameraList.Add(_T("OpenCV webcam 2"));
@@ -488,6 +495,10 @@ GuideCamera *GuideCamera::Factory(const wxString& choice)
 #if defined(SVB_CAMERA)
         else if (choice == _T("Svbony Camera"))
             pReturn = SVBCameraFactory::MakeSVBCamera();
+#endif
+#if defined(OGMA_CAMERA)
+        else if (choice == _T("OGMA Camera"))
+            pReturn = OGMACameraFactory::MakeOGMACamera();
 #endif
 #if defined (OPENCV_CAMERA)
         else if (choice.Contains(_T("OpenCV webcam")))
@@ -1180,7 +1191,7 @@ void CameraConfigDialogCtrlSet::UnloadValues()
         int oldBin = m_pCamera->Binning;
         int newBin = m_binning->GetSelection() + 1;
         if (oldBin != newBin)
-            pFrame->pAdvancedDialog->MakeImageScaleAdjustments();           // Do this now to preserve old (device value) and new (UI value) for scale adjustment
+            pFrame->pAdvancedDialog->FlagImageScaleChange();
         m_pCamera->SetBinning(m_binning->GetSelection() + 1);
     }
 
@@ -1223,7 +1234,7 @@ void CameraConfigDialogCtrlSet::UnloadValues()
     double oldPxSz = m_pCamera->GetCameraPixelSize();
     double newPxSz = m_pPixelSize->GetValue();
     if (oldPxSz != newPxSz)
-        pFrame->pAdvancedDialog->MakeImageScaleAdjustments();       // Preserve old (device value) and new (UI value) for scale adjustment
+        pFrame->pAdvancedDialog->FlagImageScaleChange();
     m_pCamera->SetCameraPixelSize(m_pPixelSize->GetValue());
 
     bool saturationByADU = m_SaturationByADU->GetValue();

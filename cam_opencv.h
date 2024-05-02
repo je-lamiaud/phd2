@@ -37,7 +37,7 @@
 #ifndef CAM_OPENCV_H_INCLUDED
 #define CAM_OPENCV_H_INCLUDED
 
-#include <opencv/highgui.h>
+#include <opencv2/highgui.hpp>
 
 class CameraOpenCV : public GuideCamera
 {
@@ -53,7 +53,7 @@ public:
     bool    Capture(int duration, usImage& img, int options, const wxRect& subframe) override;
     bool    Connect(const wxString& camId) override;
     bool    Disconnect() override;
-    bool HasNonGuiCapture() override { return true; }
+    bool    HasNonGuiCapture() override { return true; }
     wxByte  BitsPerPixel() override;
 };
 

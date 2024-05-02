@@ -53,6 +53,7 @@
 # define LE_PARALLEL_CAMERA
 # define LE_SERIAL_CAMERA
 # define MORAVIAN_CAMERA
+# define OGMA_CAMERA
 # define OPENCV_CAMERA
 # define ORION_DSCI
 # define QGUIDE
@@ -83,6 +84,9 @@
 # ifdef HAVE_KWIQGUIDER_CAMERA
 #  define KWIQGUIDER_CAMERA
 # endif
+# ifdef HAVE_OGMA_CAMERA
+#  define OGMA_CAMERA
+# endif
 # ifdef HAVE_OPENSSAG_CAMERA
 #  define OPENSSAG_CAMERA
 # endif
@@ -109,7 +113,11 @@
 #elif defined (__linux__) || defined (__FreeBSD__)
 
 # define SIMULATOR
+# define OPENCV_CAMERA
 # define CAM_QHY5
+# ifdef HAVE_OGMA_CAMERA
+#  define OGMA_CAMERA
+# endif
 # ifdef HAVE_QHY_CAMERA
 #  define QHY_CAMERA
 # endif

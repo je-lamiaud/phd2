@@ -79,8 +79,8 @@ if(WIN32)
     COMMAND vcpkg install --binarysource=default --no-print-usage curl[ssl]:x86-windows
     COMMAND ${CMAKE_COMMAND} -E echo "Building vcpkg eigen3"
     COMMAND vcpkg install --binarysource=default --no-print-usage eigen3:x86-windows
-    COMMAND ${CMAKE_COMMAND} -E echo "Building vcpkg opencv2"
-    COMMAND vcpkg install --binarysource=default --no-print-usage opencv2:x86-windows
+    COMMAND ${CMAKE_COMMAND} -E echo "Building vcpkg opencv4"
+    COMMAND vcpkg install --binarysource=default --no-print-usage opencv4:x86-windows
   )
   message(STATUS "Preparing VCPKG")
   FetchContent_MakeAvailable(vcpkg)
@@ -669,37 +669,65 @@ if(WIN32)
     message(STATUS "Disabling VLD: DISABLE_VLD is set")
   endif()
 
-  include_directories(${VCPKG_INCLUDE}/opencv2.4)
+  include_directories(${VCPKG_INCLUDE}/opencv2)
   set(PHD_LINK_EXTERNAL_DEBUG ${PHD_LINK_EXTERNAL_DEBUG}
-      ${VCPKG_DEBUG_LIB}/opencv_imgproc2d.lib
-      ${VCPKG_DEBUG_LIB}/opencv_highgui2d.lib
-      ${VCPKG_DEBUG_LIB}/opencv_core2d.lib
+      ${VCPKG_DEBUG_LIB}/opencv_imgproc4d.lib
+      ${VCPKG_DEBUG_LIB}/opencv_highgui4d.lib
+      ${VCPKG_DEBUG_LIB}/opencv_core4d.lib
+      ${VCPKG_DEBUG_LIB}/opencv_videoio4d.lib
+      ${VCPKG_DEBUG_LIB}/opencv_imgcodecs4d.lib
   )
   set(PHD_LINK_EXTERNAL_RELEASE ${PHD_LINK_EXTERNAL_RELEASE}
-      ${VCPKG_RELEASE_LIB}/opencv_imgproc2.lib
-      ${VCPKG_RELEASE_LIB}/opencv_highgui2.lib
-      ${VCPKG_RELEASE_LIB}/opencv_core2.lib
+      ${VCPKG_RELEASE_LIB}/opencv_imgproc4.lib
+      ${VCPKG_RELEASE_LIB}/opencv_highgui4.lib
+      ${VCPKG_RELEASE_LIB}/opencv_core4.lib
+      ${VCPKG_RELEASE_LIB}/opencv_videoio4.lib
+      ${VCPKG_RELEASE_LIB}/opencv_imgcodecs4.lib
   )
   set(PHD_COPY_EXTERNAL_DBG ${PHD_COPY_EXTERNAL_DBG}
-      ${VCPKG_DEBUG_BIN}/opencv_imgproc2d.dll
-      ${VCPKG_DEBUG_BIN}/opencv_highgui2d.dll
-      ${VCPKG_DEBUG_BIN}/opencv_core2d.dll
+      ${VCPKG_DEBUG_BIN}/opencv_imgproc4d.dll
+      ${VCPKG_DEBUG_BIN}/opencv_highgui4d.dll
+      ${VCPKG_DEBUG_BIN}/opencv_core4d.dll
+      ${VCPKG_DEBUG_BIN}/opencv_videoio4d.dll
+      ${VCPKG_DEBUG_BIN}/opencv_imgcodecs4d.dll
       ${VCPKG_DEBUG_BIN}/jpeg62.dll
       ${VCPKG_DEBUG_BIN}/libpng16d.dll
       ${VCPKG_DEBUG_BIN}/tiffd.dll
       ${VCPKG_DEBUG_BIN}/liblzma.dll
+      ${VCPKG_DEBUG_BIN}/libwebp.dll
+      ${VCPKG_DEBUG_BIN}/libwebpdecoder.dll
+      ${VCPKG_DEBUG_BIN}/libsharpyuv.dll
   )
   set(PHD_COPY_EXTERNAL_REL ${PHD_COPY_EXTERNAL_REL}
-      ${VCPKG_RELEASE_BIN}/opencv_imgproc2.dll
-      ${VCPKG_RELEASE_BIN}/opencv_highgui2.dll
-      ${VCPKG_RELEASE_BIN}/opencv_core2.dll
+      ${VCPKG_RELEASE_BIN}/opencv_imgproc4.dll
+      ${VCPKG_RELEASE_BIN}/opencv_highgui4.dll
+      ${VCPKG_RELEASE_BIN}/opencv_core4.dll
+      ${VCPKG_RELEASE_BIN}/opencv_videoio4.dll
+      ${VCPKG_RELEASE_BIN}/opencv_imgcodecs4.dll
       ${VCPKG_RELEASE_BIN}/jpeg62.dll
       ${VCPKG_RELEASE_BIN}/libpng16.dll
       ${VCPKG_RELEASE_BIN}/tiff.dll
       ${VCPKG_RELEASE_BIN}/liblzma.dll
+      ${VCPKG_RELEASE_BIN}/libwebp.dll
+      ${VCPKG_RELEASE_BIN}/libwebpdecoder.dll
+      ${VCPKG_RELEASE_BIN}/libsharpyuv.dll
   )
 endif()
 
+if (NOT OPENSOURCE_ONLY)
+  include(FetchContent)
+  FetchContent_Declare(
+    OGMAcamSDK
+    GIT_REPOSITORY https://github.com/OGMAvision/OGMAcamSDK.git
+    GIT_TAG be02a7317194e28e5b4f5f0d735eae729d096752
+  )
+  FetchContent_MakeAvailable(OGMAcamSDK)
+  include_directories(${ogmacamsdk_SOURCE_DIR}/inc)
+  if (WIN32)
+    list(APPEND PHD_LINK_EXTERNAL ${ogmacamsdk_SOURCE_DIR}/win/x86/ogmacam.lib)
+    list(APPEND PHD_COPY_EXTERNAL_ALL ${ogmacamsdk_SOURCE_DIR}/win/x86/ogmacam.dll)
+  endif()
+endif()
 
 # Various camera libraries
 if(WIN32)
@@ -882,6 +910,15 @@ if(APPLE)
   add_definitions(-DHAVE_TOUPTEK_CAMERA=1)
   set(phd2_OSX_FRAMEWORKS ${phd2_OSX_FRAMEWORKS} ${toupcam})
 
+  find_library( ogmacam
+                NAMES ogmacam
+                PATHS ${ogmacamsdk_SOURCE_DIR}/mac/x64+x86)
+  if(NOT ogmacam)
+    message(FATAL_ERROR "Cannot find the ogmacam drivers")
+  endif()
+  set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${ogmacam})
+  add_definitions(-DHAVE_OGMA_CAMERA=1)
+  set(phd2_OSX_FRAMEWORKS ${phd2_OSX_FRAMEWORKS} ${ogmacam})
 
   ### does not work on x64
   #find_library( openssag
@@ -993,6 +1030,19 @@ if(UNIX AND NOT APPLE)
       add_definitions(-DHAVE_TOUPTEK_CAMERA=1)
       set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${toupcam})
       set(PHD_INSTALL_LIBS ${PHD_INSTALL_LIBS} ${toupcam})
+
+      find_library(ogmacam
+             NAMES ogmacam
+             NO_DEFAULT_PATHS
+             NO_CMAKE_SYSTEM_PATH
+             PATHS ${ogmacamsdk_SOURCE_DIR}/linux/${toupcam_arch})
+      if(NOT ogmacam)
+        message(FATAL_ERROR "Cannot find the ogmacam drivers")
+      endif()
+      message(STATUS "Found ogmacam lib ${ogmacam}")
+      add_definitions(-DHAVE_OGMA_CAMERA=1)
+      set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${ogmacam})
+      set(PHD_INSTALL_LIBS ${PHD_INSTALL_LIBS} ${ogmacam})
 
       find_library(SVBCameraSDK
             NAMES SVBCameraSDK

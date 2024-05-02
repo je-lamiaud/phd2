@@ -36,7 +36,6 @@
  *
  */
 
-
 #ifndef _CONFIG_INDI_H_
 #define _CONFIG_INDI_H_
 
@@ -53,6 +52,7 @@ enum IndiDevType
     INDI_TYPE_MOUNT,
     INDI_TYPE_AUX_MOUNT,
     INDI_TYPE_AO,
+    INDI_TYPE_ROTATOR,
 };
 
 class INDIConfig : public wxDialog, public INDI::BaseClient

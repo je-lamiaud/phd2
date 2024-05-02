@@ -187,6 +187,8 @@ set(cam_SRC
   ${phd_src_dir}/cam_moravian.h
   ${phd_src_dir}/cam_NebSBIG.cpp
   ${phd_src_dir}/cam_NebSBIG.h
+  ${phd_src_dir}/cam_ogma.cpp
+  ${phd_src_dir}/cam_ogma.h
   ${phd_src_dir}/cam_opencv.cpp
   ${phd_src_dir}/cam_opencv.h
   ${phd_src_dir}/cam_openssag.cpp
@@ -445,6 +447,9 @@ set(phd2_SRC
   ${phd_src_dir}/rotator_ascom.cpp
   ${phd_src_dir}/rotator_ascom.h
 
+  ${phd_src_dir}/rotator_indi.cpp
+  ${phd_src_dir}/rotator_indi.h
+
   ###
 
   ${phd_src_dir}/runinbg.cpp
@@ -695,6 +700,18 @@ if(APPLE)
     )
   endif()
 
+  if(ogmacam)
+    set_source_files_properties(${ogmacam} PROPERTIES MACOSX_PACKAGE_LOCATION Frameworks)
+    # there's got to be a better way, but damfino. This works though.
+    add_custom_command(
+      TARGET phd2
+      POST_BUILD
+      COMMAND install_name_tool -change @rpath/libogmacam.dylib
+                   @executable_path/../Frameworks/libogmacam.dylib $<TARGET_FILE:phd2>
+      COMMENT "Updating dylib path for libogmacam.dylib"
+    )
+  endif()
+
   if(SVBCameraSDK)
     set_source_files_properties(${SVBCameraSDK} PROPERTIES MACOSX_PACKAGE_LOCATION Frameworks)
     add_custom_command(
@@ -767,7 +784,10 @@ elseif(UNIX)
    ${guiding_SRC}
    ${phd2_SRC}
    )
-  target_link_libraries(phd2 X11)
+
+  find_package( OpenCV REQUIRED )
+
+  target_link_libraries(phd2 X11 ${OpenCV_LIBS})
 
   set_target_properties(
     phd2
