@@ -77,7 +77,7 @@
 #include <math.h>
 #include <stdarg.h>
 
-#define APPNAME _T("PHD2 Guiding")
+#define APPNAME _T("PHD2 Guiding (Garage Lamiaud's fork)")
 #define PHDVERSION _T("2.6.13")
 #define PHDSUBVER _T("dev4")
 #define FULLVER PHDVERSION PHDSUBVER
