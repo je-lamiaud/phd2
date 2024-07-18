@@ -44,6 +44,8 @@ public:
     virtual bool    ST4HasNonGuiMove();
     virtual bool    ST4SynchronousOnly();
     virtual bool    ST4PulseGuideScope(int direction, int duration);
+    // Overriden by subclasses only if they provide simultaneous RA & Dec guiding
+    virtual void    ST4WaitMoveCompletion();
 };
 
 #endif //ONBOARD_ST4_H_INCLUDED

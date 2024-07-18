@@ -151,6 +151,33 @@ Mount::MOVE_RESULT ScopeOnboardST4::Guide(GUIDE_DIRECTION direction, int duratio
     return result;
 }
 
+void ScopeOnboardST4::WaitMoveCompletion()
+{
+    try
+    {
+        if (!IsConnected())
+        {
+            throw ERROR_INFO("Attempt to WaitMoveCompletion On Camera mount when not connected");
+        }
+
+        if (!m_pOnboardHost)
+        {
+            throw ERROR_INFO("Attempt to WaitMoveCompletion OnboardST4 mount when m_pOnboardHost == NULL");
+        }
+
+        if (!m_pOnboardHost->ST4HostConnected())
+        {
+            throw ERROR_INFO("Attempt to WaitMoveCompletion On Camera mount when camera is not connected");
+        }
+
+        m_pOnboardHost->ST4WaitMoveCompletion();
+    }
+    catch (const wxString& Msg)
+    {
+        POSSIBLY_UNUSED(Msg);
+    }
+}
+
 bool ScopeOnboardST4::HasNonGuiMove(void)
 {
     bool bReturn = false;

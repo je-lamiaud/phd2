@@ -51,6 +51,7 @@ public:
 
     bool HasNonGuiMove(void) override;
     bool SynchronousOnly(void) override;
+    void WaitMoveCompletion() override;
 
     MOVE_RESULT Guide(GUIDE_DIRECTION direction, int duration) override;
 };

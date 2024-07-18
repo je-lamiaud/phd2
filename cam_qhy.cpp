@@ -55,6 +55,7 @@ class Camera_QHY : public GuideCamera
     wxRect m_roi;
     bool Color;
     wxByte m_bpp;
+    wxDateTime m_guideEnd;
 
 public:
 
@@ -68,6 +69,7 @@ public:
     bool Disconnect() override;
 
     bool ST4PulseGuideScope(int direction, int duration) override;
+    void ST4WaitMoveCompletion() override;
 
     bool HasNonGuiCapture() override { return true; }
     bool ST4HasNonGuiMove() override { return true; }
@@ -159,6 +161,7 @@ Camera_QHY::Camera_QHY()
     m_bpp = 8; // actual value will be determined when camera is connected
     HasSubframes = true;
     m_camhandle = 0;
+    m_guideEnd = wxDateTime::Today();
 }
 
 Camera_QHY::~Camera_QHY()
@@ -413,9 +416,20 @@ bool Camera_QHY::ST4PulseGuideScope(int direction, int duration)
     }
     if (duration > (uint16_t) (-1))
         duration = (uint16_t) (-1);
+    wxDateTime guideStart = wxDateTime::UNow();
     ControlQHYCCDGuide(m_camhandle, qdir, static_cast<uint16_t>(duration));
-    WorkerThread::MilliSleep(duration + 10);
+    wxDateTime deadline = guideStart + wxTimeSpan::Milliseconds(duration);
+    if (deadline.IsLaterThan(m_guideEnd))
+        m_guideEnd = deadline;
     return false;
+}
+
+void Camera_QHY::ST4WaitMoveCompletion()
+{
+    wxTimeSpan duration = m_guideEnd - wxDateTime::UNow();
+    if (duration.IsPositive())
+        WorkerThread::MilliSleep(duration.GetMilliseconds().GetLo() + 10);
+    // Otherwise, the ControlQHYCCDGuide call did the wait: the camera does not support dual axis guiding
 }
 
 inline static int round_down(int v, int m)

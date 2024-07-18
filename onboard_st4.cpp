@@ -57,6 +57,10 @@ bool OnboardST4::ST4SynchronousOnly(void)
     return true;
 }
 
+void OnboardST4::ST4WaitMoveCompletion()
+{
+}
+
 bool OnboardST4::ST4PulseGuideScope(int direction, int duration)
 {
     assert(false);
