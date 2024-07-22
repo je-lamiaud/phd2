@@ -55,6 +55,7 @@ ScopeASCOM::ScopeASCOM(const wxString& choice)
 {
     m_choice = choice;
     m_canPulseGuide = false;                           // will get updated in Connect()
+    m_guideEnd = wxDateTime::Today();
 
     dispid_connected = DISPID_UNKNOWN;
     dispid_ispulseguiding = DISPID_UNKNOWN;
@@ -533,35 +534,37 @@ Mount::MOVE_RESULT ScopeASCOM::Guide(GUIDE_DIRECTION direction, int duration)
 
         GITObjRef scope(m_gitEntry);
 
-        // First, check to see if already moving
+        // First, check to see if already moving when it should not (i.e. outside of ongoing guide pulse)
+        if (wxDateTime::UNow() > (m_guideEnd + wxTimeSpan::Milliseconds(30)))
+		  {
+            CheckSlewing(&scope, &result);
 
-        CheckSlewing(&scope, &result);
-
-        if (IsGuiding(&scope))
-        {
-            Debug.Write("Entered PulseGuideScope while moving\n");
-            int i;
-            for (i = 0; i < 20; i++)
+            if (IsGuiding(&scope))
             {
-                wxMilliSleep(50);
+                Debug.Write("Entered PulseGuideScope while moving\n");
+                int i;
+                for (i = 0; i < 20; i++)
+                {
+                    wxMilliSleep(50);
 
-                CheckSlewing(&scope, &result);
+                    CheckSlewing(&scope, &result);
 
-                if (!IsGuiding(&scope))
-                    break;
+                    if (!IsGuiding(&scope))
+                        break;
 
-                Debug.Write("Still moving\n");
+                    Debug.Write("Still moving\n");
+                }
+                if (i == 20)
+                {
+                    Debug.Write("Still moving after 1s - aborting\n");
+                    throw ERROR_INFO("ASCOM Scope: scope is still moving after 1 second");
+                }
+                else
+                {
+                    Debug.Write("Movement stopped - continuing\n");
+                }
             }
-            if (i == 20)
-            {
-                Debug.Write("Still moving after 1s - aborting\n");
-                throw ERROR_INFO("ASCOM Scope: scope is still moving after 1 second");
-            }
-            else
-            {
-                Debug.Write("Movement stopped - continuing\n");
-            }
-        }
+		  }
 
         // Do the move
 
@@ -583,6 +586,7 @@ Mount::MOVE_RESULT ScopeASCOM::Guide(GUIDE_DIRECTION direction, int duration)
         ExcepInfo excep;
         Variant vRes;
 
+        wxDateTime guideStart = wxDateTime::UNow();
         if (FAILED(hr = scope.IDisp()->Invoke(dispid_pulseguide, IID_NULL, LOCALE_USER_DEFAULT, DISPATCH_METHOD,
             &dispParms, &vRes, &excep, NULL)))
         {
@@ -613,66 +617,9 @@ Mount::MOVE_RESULT ScopeASCOM::Guide(GUIDE_DIRECTION direction, int duration)
             }
         }
 
-        if (elapsed < (long)duration)
-        {
-            unsigned long rem = (unsigned long)((long)duration - elapsed);
-
-            Debug.Write(wxString::Format("PulseGuide returned control before completion, sleep %lu\n", rem + 10));
-
-            if (WorkerThread::MilliSleep(rem + 10))
-                throw ERROR_INFO("ASCOM Scope: thread terminate requested");
-        }
-
-        if (IsGuiding(&scope))
-        {
-            Debug.Write("scope still moving after pulse duration time elapsed\n");
-
-            // try waiting a little longer. If scope does not stop moving after 1 second, try doing AbortSlew
-            // if it still does not stop after 2 seconds, bail out with an error
-
-            enum { GRACE_PERIOD_MS = 1000,
-                   TIMEOUT_MS = GRACE_PERIOD_MS + 1000, };
-
-            bool timeoutExceeded = false;
-            bool didAbortSlew = false;
-
-            while (true)
-            {
-                ::wxMilliSleep(20);
-
-                if (WorkerThread::InterruptRequested())
-                    throw ERROR_INFO("ASCOM Scope: thread interrupt requested");
-
-                CheckSlewing(&scope, &result);
-
-                if (!IsGuiding(&scope))
-                {
-                    Debug.Write(wxString::Format("scope move finished after %ld + %ld ms\n", (long)duration, swatch.Time() - (long)duration));
-                    break;
-                }
-
-                long now = swatch.Time();
-
-                if (!didAbortSlew && now > duration + GRACE_PERIOD_MS && m_abortSlewWhenGuidingStuck)
-                {
-                    Debug.Write(wxString::Format("scope still moving after %ld + %ld ms, try aborting slew\n", (long)duration, now - (long)duration));
-                    AbortSlew(&scope);
-                    didAbortSlew = true;
-                    continue;
-                }
-
-                if (now > duration + TIMEOUT_MS)
-                {
-                    timeoutExceeded = true;
-                    break;
-                }
-            }
-
-            if (timeoutExceeded && IsGuiding(&scope))
-            {
-                throw ERROR_INFO("timeout exceeded waiting for guiding pulse to complete");
-            }
-        }
+        wxDateTime deadline = guideStart + wxTimeSpan::Milliseconds(duration);
+        if (deadline.IsLaterThan(m_guideEnd))
+            m_guideEnd = deadline;
     }
     catch (const wxString& msg)
     {
@@ -697,6 +644,69 @@ Mount::MOVE_RESULT ScopeASCOM::Guide(GUIDE_DIRECTION direction, int duration)
     }
 
     return result;
+}
+
+void ScopeASCOM::WaitMoveCompletion()
+{
+    wxTimeSpan duration = m_guideEnd - wxDateTime::UNow();
+    if (duration.IsPositive())
+        WorkerThread::MilliSleep(duration.GetMilliseconds().GetLo() + 10);
+
+    GITObjRef scope(m_gitEntry);
+
+    if (IsGuiding(&scope))
+    {
+        Debug.Write("scope still moving after pulse duration time elapsed\n");
+
+        // try waiting a little longer. If scope does not stop moving after 1 second, try doing AbortSlew
+        // if it still does not stop after 2 seconds, bail out with an error
+
+        enum { GRACE_PERIOD_MS = 1000,
+                TIMEOUT_MS = GRACE_PERIOD_MS + 1000, };
+
+        bool timeoutExceeded = false;
+        bool didAbortSlew = false;
+
+        while (true)
+        {
+            MOVE_RESULT result = MOVE_OK;
+
+            ::wxMilliSleep(20);
+
+            if (WorkerThread::InterruptRequested())
+                throw ERROR_INFO("ASCOM Scope: thread interrupt requested");
+
+            CheckSlewing(&scope, &result);
+
+            wxDateTime now = wxDateTime::UNow();
+            long delayedBy = now.Subtract(m_guideEnd).GetValue().ToLong();
+
+            if (!IsGuiding(&scope))
+            {
+                Debug.Write(wxString::Format("scope move finished %ld ms after pulse end\n", delayedBy));
+                break;
+            }
+
+            if (!didAbortSlew && now > (m_guideEnd + wxTimeSpan::Milliseconds(GRACE_PERIOD_MS)) && m_abortSlewWhenGuidingStuck)
+            {
+                Debug.Write(wxString::Format("scope still moving %ld ms after pulse end, try aborting slew\n", delayedBy));
+                AbortSlew(&scope);
+                didAbortSlew = true;
+                continue;
+            }
+
+            if (now > m_guideEnd + wxTimeSpan::Milliseconds(TIMEOUT_MS))
+            {
+                timeoutExceeded = true;
+                break;
+            }
+        }
+
+        if (timeoutExceeded && IsGuiding(&scope))
+        {
+            throw ERROR_INFO("timeout exceeded waiting for guiding pulse to complete");
+        }
+    }
 }
 
 bool ScopeASCOM::IsGuiding(DispatchObj *scope)

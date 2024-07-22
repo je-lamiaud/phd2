@@ -71,6 +71,7 @@ class ScopeASCOM : public Scope
     bool m_canSlew;
     bool m_canSlewAsync;
     bool m_canPulseGuide;
+    wxDateTime m_guideEnd;
 
     bool m_abortSlewWhenGuidingStuck;
     bool m_checkForSyncPulseGuide;
@@ -97,6 +98,8 @@ public:
     bool HasNonGuiMove() override;
 
     MOVE_RESULT Guide(GUIDE_DIRECTION direction, int durationMs) override;
+
+    void WaitMoveCompletion() override;
 
     double GetDeclinationRadians() override;
     bool GetGuideRates(double *pRAGuideRate, double *pDecGuideRate) override;
