@@ -578,10 +578,18 @@ else()
   if(NOT wxWidgets_FOUND)
     message(FATAL_ERROR "WxWidget cannot be found. Please use wx-config prefix")
   endif()
-  #if(APPLE)
+  if(APPLE)
+    # Force static linking of non macOS libraries
+    foreach(op IN LISTS wxWidgets_LIBRARIES)
+      string(REPLACE "-lpcre2-32" "/usr/local/lib/libpcre2-32.a" op1 "${op}")
+      string(REPLACE "-ljpeg" "/usr/local/lib/libjpeg.a" op2 "${op1}")
+      string(REPLACE "-ltiff" "/usr/local/lib/libtiff.a" static_op "${op2}")
+      #message(STATUS "op=${static_op}")
+      list(APPEND wxLibraries_withStatic "${static_op}")
+    endforeach()
+    set(wxWidgets_LIBRARIES ${wxLibraries_withStatic})
   #  set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} wx_osx_cocoau_aui-3.0)
-  #endif()
-  #message("wxLibraries ${wxWidgets_LIBRARIES}")
+  endif()
 endif()
 
 set(PHD_LINK_EXTERNAL ${PHD_LINK_EXTERNAL} ${wxWidgets_LIBRARIES})
@@ -859,6 +867,7 @@ if(APPLE)
   #
   find_library( sbigudFramework
                 NAMES SBIGUDrv
+                NO_DEFAULT_PATH
                 PATHS ${thirdparty_dir}/frameworks)
   add_definitions(-DHAVE_SBIG_CAMERA=1)
   if(NOT sbigudFramework)
@@ -871,6 +880,7 @@ if(APPLE)
 
   find_library( asiCamera2
                 NAMES ASICamera2
+                NO_DEFAULT_PATH
                 PATHS ${PHD_PROJECT_ROOT_DIR}/cameras/zwolibs/mac)
   if(NOT asiCamera2)
     message(FATAL_ERROR "Cannot find the asiCamera2 drivers")
@@ -881,6 +891,7 @@ if(APPLE)
 
   find_library( SVBCameraSDK
                 NAMES SVBCameraSDK
+                NO_DEFAULT_PATH
                 PATHS ${PHD_PROJECT_ROOT_DIR}/cameras/svblibs/mac/x64)
   if(NOT SVBCameraSDK)
     message(FATAL_ERROR "Cannot find the Svbony SDK libs")
@@ -894,6 +905,7 @@ if(APPLE)
 
   find_library( qhylib
                 NAMES qhyccd
+                NO_DEFAULT_PATH
                 PATHS ${PHD_PROJECT_ROOT_DIR}/cameras/qhyccdlibs/mac/universal)
   if(NOT qhylib)
     message(FATAL_ERROR "Cannot find the qhy SDK libs")
@@ -904,6 +916,7 @@ if(APPLE)
 
   find_library( toupcam
                 NAMES toupcam
+                NO_DEFAULT_PATH
                 PATHS ${PHD_PROJECT_ROOT_DIR}/cameras/toupcam/mac)
   if(NOT toupcam)
     message(FATAL_ERROR "Cannot find the toupcam drivers")
@@ -914,6 +927,7 @@ if(APPLE)
 
   find_library( ogmacam
                 NAMES ogmacam
+                NO_DEFAULT_PATH
                 PATHS ${ogmacamsdk_SOURCE_DIR}/mac/x64+x86)
   if(NOT ogmacam)
     message(FATAL_ERROR "Cannot find the ogmacam drivers")
