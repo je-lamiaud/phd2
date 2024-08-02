@@ -35,34 +35,34 @@
 #ifndef SCOPES_H_INCLUDED
 #define SCOPES_H_INCLUDED
 
-#if defined (__WINDOWS__)
+#if defined(__WINDOWS__)
 
-    #define GUIDE_ONCAMERA
-    #define GUIDE_ONSTEPGUIDER
-    #define GUIDE_ASCOM
-    #define GUIDE_GPUSB
-    #define GUIDE_GPINT
-    #define GUIDE_INDI
+# define GUIDE_ONCAMERA
+# define GUIDE_ONSTEPGUIDER
+# define GUIDE_ASCOM
+# define GUIDE_GPUSB
+# define GUIDE_GPINT
+# define GUIDE_INDI
 
-#elif defined (__APPLE__)
+#elif defined(__APPLE__)
 
-    #define GUIDE_ONCAMERA
-    #define GUIDE_ONSTEPGUIDER
-    #define GUIDE_GPUSB
-    #define GUIDE_GCUSBST4
-    #define GUIDE_INDI
-    #define GUIDE_EQUINOX
-    //#define GUIDE_VOYAGER
-    //#define GUIDE_NEB
-    #define GUIDE_EQMAC
-    #define GUIDE_EQTRACK
+# define GUIDE_ONCAMERA
+# define GUIDE_ONSTEPGUIDER
+# define GUIDE_GPUSB
+# define GUIDE_GCUSBST4
+# define GUIDE_INDI
+# define GUIDE_EQUINOX
+// #define GUIDE_VOYAGER
+// #define GUIDE_NEB
+# define GUIDE_EQMAC
+#define GUIDE_EQTRACK
 
-#elif defined (__linux__) || defined (__FreeBSD__)
+#elif defined(__linux__) || defined(__FreeBSD__)
 
-    #define GUIDE_ONCAMERA
-    #define GUIDE_ONSTEPGUIDER
-    #define GUIDE_INDI
-    #define GUIDE_EQTRACK
+# define GUIDE_ONCAMERA
+# define GUIDE_ONSTEPGUIDER
+# define GUIDE_INDI
+#define GUIDE_EQTRACK
 
 #endif // WINDOWS/APPLE/LINUX
 

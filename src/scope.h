@@ -57,7 +57,7 @@ class ScopeConfigDialogCtrlSet : public MountConfigDialogCtrlSet
     wxCheckBox *m_assumeOrthogonal;
     wxSpinCtrl *m_pMaxRaDuration;
     wxSpinCtrl *m_pMaxDecDuration;
-    wxChoice   *m_pDecMode;
+    wxChoice *m_pDecMode;
     wxCheckBox *m_pUseBacklashComp;
     wxSpinCtrlDouble *m_pBacklashPulse;
     wxSpinCtrlDouble *m_pBacklashFloor;
@@ -70,7 +70,7 @@ class ScopeConfigDialogCtrlSet : public MountConfigDialogCtrlSet
     void OnDecModeChoice(wxCommandEvent& evt);
 
 public:
-    ScopeConfigDialogCtrlSet(wxWindow *pParent, Scope *pScope, AdvancedDialog* pAdvancedDialog, BrainCtrlIdMap& CtrlMap);
+    ScopeConfigDialogCtrlSet(wxWindow *pParent, Scope *pScope, AdvancedDialog *pAdvancedDialog, BrainCtrlIdMap& CtrlMap);
     virtual ~ScopeConfigDialogCtrlSet() {};
     void LoadValues() override;
     void UnloadValues() override;
@@ -100,11 +100,12 @@ class Scope : public Mount
     int m_calibrationDistance;
     int m_recenterRemaining;
     int m_recenterDuration;
-    PHD_Point m_calibrationInitialLocation;   // initial position of guide star
-    PHD_Point m_calibrationStartingLocation;  // position of guide star at start of calibration measurement (after clear backlash etc.)
-    PHD_Point m_calibrationStartingCoords;    // ra,dec coordinates at start of calibration measurement
-    PHD_Point m_southStartingLocation;        // Needed to be sure nudging is in south-only direction
-    PHD_Point m_eastStartingLocation;         // For basic sanity check that east moves worked at all
+    PHD_Point m_calibrationInitialLocation; // initial position of guide star
+    PHD_Point
+        m_calibrationStartingLocation; // position of guide star at start of calibration measurement (after clear backlash etc.)
+    PHD_Point m_calibrationStartingCoords; // ra,dec coordinates at start of calibration measurement
+    PHD_Point m_southStartingLocation; // Needed to be sure nudging is in south-only direction
+    PHD_Point m_eastStartingLocation; // For basic sanity check that east moves worked at all
     PHD_Point m_lastLocation;
     double m_totalSouthAmt;
     double m_northDirCosX;
@@ -118,7 +119,12 @@ class Scope : public Mount
     int m_blAcceptedMoves;
     double m_blDistanceMoved;
     int m_blMaxClearingPulses;
-    enum blConstants { BL_BACKLASH_MIN_COUNT = 3, BL_MAX_CLEARING_TIME = 60000, BL_MIN_CLEARING_DISTANCE = 3 };
+    enum blConstants
+    {
+        BL_BACKLASH_MIN_COUNT = 3,
+        BL_MAX_CLEARING_TIME = 60000,
+        BL_MIN_CLEARING_DISTANCE = 3
+    };
 
     Calibration m_calibration;
     CalibrationDetails m_calibrationDetails;
@@ -147,6 +153,7 @@ class Scope : public Mount
         CALIBRATION_STATE_COMPLETE
     };
     CALIBRATION_STATE m_calibrationState;
+
 public:
     bool m_CalDetailsValidated;
     bool m_bogusGuideRatesFlagged;
@@ -180,7 +187,7 @@ protected:
         Scope *m_pScope;
         wxSpinCtrl *m_pMaxRaDuration;
         wxSpinCtrl *m_pMaxDecDuration;
-        wxChoice   *m_pDecMode;
+        wxChoice *m_pDecMode;
 
         void OnMaxRaDurationSpinCtrl(wxSpinEvent& evt);
         void OnMaxDecDurationSpinCtrl(wxSpinEvent& evt);
@@ -195,10 +202,9 @@ protected:
     GUIDE_ALGORITHM DefaultYGuideAlgorithm() const override;
 
 public:
-
-    int GetCalibrationDuration() const;  // calibration step size, ms
+    int GetCalibrationDuration() const; // calibration step size, ms
     bool SetCalibrationDuration(int calibrationDuration);
-    int GetCalibrationDistance() const;  // calibration distance, px
+    int GetCalibrationDistance() const; // calibration distance, px
     bool SetCalibrationDistance(int calibrationDistance);
     int GetMaxDecDuration() const;
     bool SetMaxDecDuration(int maxDecDuration);
@@ -212,7 +218,8 @@ public:
     static wxString DecGuideModeLocaleStr(DEC_GUIDE_MODE m);
 
     MountConfigDialogPane *GetConfigDialogPane(wxWindow *pParent) override;
-    MountConfigDialogCtrlSet *GetConfigDialogCtrlSet(wxWindow *pParent, Mount *pScope, AdvancedDialog *pAdvancedDialog, BrainCtrlIdMap& CtrlMap) override;
+    MountConfigDialogCtrlSet *GetConfigDialogCtrlSet(wxWindow *pParent, Mount *pScope, AdvancedDialog *pAdvancedDialog,
+                                                     BrainCtrlIdMap& CtrlMap) override;
 
     GraphControlPane *GetGraphControlPane(wxWindow *pParent, const wxString& label) override;
     wxString GetSettingsSummary() const override;
@@ -234,7 +241,7 @@ public:
     bool UpdateCalibrationState(const PHD_Point& currentLocation) override;
 
     static const double DEC_COMP_LIMIT; // declination compensation limit
-    static const double DEFAULT_MOUNT_GUIDE_SPEED;              // Presumptive mount guide speed if no usable mount connection
+    static const double DEFAULT_MOUNT_GUIDE_SPEED; // Presumptive mount guide speed if no usable mount connection
     void EnableDecCompensation(bool enable);
     bool DecCompensationEnabled() const override;
 
@@ -263,7 +270,7 @@ public:
     virtual bool CanCheckSlewing();
     virtual bool Slewing();
     virtual PierSide SideOfPier();
-    virtual bool CanReportPosition();  // Can report RA, Dec, side-of-pier, etc.
+    virtual bool CanReportPosition(); // Can report RA, Dec, side-of-pier, etc.
     // Will be called before guiding starts, before any call to GetCoordinates, GetDeclination, or SideOfPier.
     // Does not get called unless guiding was started interactively (by clicking the guide button)
     virtual bool PreparePositionInteractive();
@@ -278,7 +285,8 @@ private:
 
     // functions with an implementation in Scope that cannot be over-ridden
     // by a subclass
-    MOVE_RESULT MoveAxis(GUIDE_DIRECTION direction, int durationMs, unsigned int moveOptions, MoveResultInfo *moveResultInfo, bool blocking = true) final;
+    MOVE_RESULT MoveAxis(GUIDE_DIRECTION direction, int durationMs, unsigned int moveOptions,
+                         MoveResultInfo *moveResultInfo, bool blocking = true) final;
     MOVE_RESULT MoveAxis(GUIDE_DIRECTION direction, int duration, unsigned int moveOptions) final;
     int CalibrationMoveSize() override;
     void CheckCalibrationDuration(int currDuration);
@@ -290,7 +298,7 @@ private:
 
     void AlertLimitReached(int duration, GuideAxis axis);
 
-// these MUST be supplied by a subclass
+    // these MUST be supplied by a subclass
 private:
     virtual MOVE_RESULT Guide(GUIDE_DIRECTION direction, int durationMs) = 0;
 };
