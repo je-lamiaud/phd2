@@ -607,7 +607,7 @@ bool Camera_QHY::Capture(int duration, usImage& img, int options, const wxRect& 
         int remaining = GetQHYCCDExposureRemaining(m_camhandle);
         if (remaining <= 100)
             break;
-        WorkerThread::MilliSleep(2, WorkerThread::INT_ANY);
+        WorkerThread::MilliSleep(10, WorkerThread::INT_ANY);
     }
 #ifdef debug
     Debug.Write(wxString::Format("QHY exp single frame ready for reading\n"));

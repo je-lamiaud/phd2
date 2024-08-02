@@ -680,8 +680,11 @@ void ScopeASCOM::WaitMoveCompletion()
 
             ::wxMilliSleep(20);
 
-                if (WorkerThread::InterruptRequested())
-                    throw ERROR_INFO("ASCOM Scope: thread interrupt requested");
+            if (WorkerThread::InterruptRequested())
+            {
+                Debug.Write(wxString::Format("ASCOM Scope: thread interrupt requested"));
+                break;
+            }
 
             CheckSlewing(&scope, &result);
 
@@ -711,7 +714,7 @@ void ScopeASCOM::WaitMoveCompletion()
 
         if (timeoutExceeded && IsGuiding(&scope))
         {
-            throw ERROR_INFO("timeout exceeded waiting for guiding pulse to complete");
+            Debug.Write(wxString::Format("timeout exceeded waiting for guiding pulse to complete"));
         }
     }
 }
