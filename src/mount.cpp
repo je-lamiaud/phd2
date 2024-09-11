@@ -563,10 +563,11 @@ MountConfigDialogCtrlSet::MountConfigDialogCtrlSet(wxWindow *pParent, Mount *mou
                     _("Keep this checked for guiding. Un-check to disable all mount guide commands and allow the mount to run "
                       "un-guided"));
         }
-        m_pConcurrentRaDecGuiding = new wxCheckBox(GetParentWindow(AD_cbConcurrentRaDecGuiding), wxID_ANY, _("Allow simultaneous RA and Dec corrections"));
+        m_pConcurrentRaDecGuiding = new wxCheckBox(GetParentWindow(AD_cbConcurrentRaDecGuiding), wxID_ANY,
+                                                   _("Allow simultaneous RA and Dec corrections"));
         AddCtrl(CtrlMap, AD_cbConcurrentRaDecGuiding, m_pConcurrentRaDecGuiding,
-                _("When checked, RA and Dec correction moves will take place in parallel, if the mount supports it. Use this with care."));
-
+                _("When checked, RA and Dec correction moves will take place in parallel, if the mount supports it. Use this "
+                  "with care."));
     }
 }
 
@@ -1457,9 +1458,7 @@ bool Mount::SynchronousOnly()
     return false;
 }
 
-void Mount::WaitMoveCompletion()
-{
-}
+void Mount::WaitMoveCompletion() { }
 
 bool Mount::HasSetupDialog() const
 {

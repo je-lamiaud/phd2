@@ -41,7 +41,7 @@
 class ScopeEQTrack : public Scope
 {
 public:
-	bool m_exitSendLoop;
+    bool m_exitSendLoop;
 
     ScopeEQTrack(void);
     virtual ~ScopeEQTrack(void);
@@ -56,18 +56,18 @@ public:
     void doSend();
 
 private:
-	wxString m_serialPortName;
-	SerialPort *m_serialPort;
-	int m_moveDuration[2];
-	u_short m_command;
-	u_char m_sendBuffer[4];
-	pthread_t m_sendThread;
-	pthread_mutex_t m_sendMutex;
+    wxString m_serialPortName;
+    SerialPort *m_serialPort;
+    int m_moveDuration[2];
+    u_short m_command;
+    u_char m_sendBuffer[4];
+    pthread_t m_sendThread;
+    pthread_mutex_t m_sendMutex;
 
-	bool HasSetupDialog() const override;
-	void SetupDialog() override;
+    bool HasSetupDialog() const override;
+    void SetupDialog() override;
 
-	void updateBuffer(void);
+    void updateBuffer(void);
 };
 
 #endif /* GUIDE_EQTRACK */

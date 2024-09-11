@@ -55,14 +55,14 @@
 // #define GUIDE_VOYAGER
 // #define GUIDE_NEB
 # define GUIDE_EQMAC
-#define GUIDE_EQTRACK
+# define GUIDE_EQTRACK
 
 #elif defined(__linux__) || defined(__FreeBSD__)
 
 # define GUIDE_ONCAMERA
 # define GUIDE_ONSTEPGUIDER
 # define GUIDE_INDI
-#define GUIDE_EQTRACK
+# define GUIDE_EQTRACK
 
 #endif // WINDOWS/APPLE/LINUX
 

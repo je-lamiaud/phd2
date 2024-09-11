@@ -93,7 +93,7 @@ private:
     long INDIport;
     wxString INDIhost;
     wxString INDIMountName;
-    bool DeviceConnected {false};
+    bool DeviceConnected { false };
     bool eod_coord;
 
     void ClearStatus();
@@ -192,19 +192,19 @@ void ScopeINDI::CheckState()
     {
         if (!DeviceConnected)
         {
-           ClearStatus();
+            ClearStatus();
 
-           // call Disconnect in the main thread since that will
-           // want to join the INDI worker thread which is
-           // probably the current thread
+            // call Disconnect in the main thread since that will
+            // want to join the INDI worker thread which is
+            // probably the current thread
 
-           PhdApp::ExecInMainThread(
-              [this]()
-                 {
+            PhdApp::ExecInMainThread(
+                [this]()
+                {
                     pFrame->Alert(_("INDI mount was disconnected"));
                     Disconnect();
-                 });
-           return;
+                });
+            return;
         }
     }
     else
@@ -228,8 +228,9 @@ void ScopeINDI::CheckState()
 
         Debug.Write(wxString::Format("INDI Telescope%s is ready "
                                      "MotionRate=%d moveNS=%d moveEW=%d guideNS=%d guideEW=%d coord=%d\n",
-                                     isAuxMount ? " (AUX)" : "", MotionRate_prop ? 1 : 0, moveNS_prop ? 1 : 0, moveEW_prop ? 1 : 0,
-                                     pulseGuideNS_prop ? 1 : 0, pulseGuideEW_prop ? 1 : 0, coord_prop ? 1 : 0));
+                                     isAuxMount ? " (AUX)" : "", MotionRate_prop ? 1 : 0, moveNS_prop ? 1 : 0,
+                                     moveEW_prop ? 1 : 0, pulseGuideNS_prop ? 1 : 0, pulseGuideEW_prop ? 1 : 0,
+                                     coord_prop ? 1 : 0));
 
         if (DeviceConnected)
             // We have all required properties, and the device is connected
@@ -325,7 +326,7 @@ bool ScopeINDI::Connect()
                     // If already connected, this will return immediately
                     scope->connectDevice(scope->INDIMountName.mb_str(wxConvUTF8));
 
-                while (!scope->IsConnected() && wxGetUTCTimeMillis() - msec < 30 * 1000) 
+                while (!scope->IsConnected() && (wxGetUTCTimeMillis() - msec) < (30 * 1000))
                 {
                     if (IsCanceled())
                         break;
@@ -344,7 +345,7 @@ bool ScopeINDI::Connect()
     if (DeviceConnected && !IsConnected())
         pFrame->Alert(_("INDI mount lacks some required properties"));
 
-    return res;    
+    return res;
 }
 
 bool ScopeINDI::Disconnect()
@@ -395,7 +396,7 @@ void ScopeINDI::updateProperty(INDI::Property property)
             Debug.Write(wxString::Format("INDI Mount: Receiving Switch: %s = %i\n", svp->name, svp->sp->s));
 
         if (strcmp(svp->name, "CONNECTION") == 0)
-                CheckState();
+            CheckState();
     }
     break;
 
@@ -620,7 +621,7 @@ Mount::MOVE_RESULT ScopeINDI::Guide(GUIDE_DIRECTION direction, int duration)
             break;
         default:
             break;
-            }
+        }
 
         return MOVE_OK;
     }
@@ -945,7 +946,7 @@ Scope *INDIScopeFactory::MakeINDIScope(const wxString& choice)
     }
 
     if (deviceName.empty())
-       Debug.Write(wxString::Format("INDI Mount: MakeINDIScope has no name match for %s\n", choice));
+        Debug.Write(wxString::Format("INDI Mount: MakeINDIScope has no name match for %s\n", choice));
 
     return new ScopeINDI(wxString(deviceName));
 }

@@ -285,8 +285,8 @@ private:
 
     // functions with an implementation in Scope that cannot be over-ridden
     // by a subclass
-    MOVE_RESULT MoveAxis(GUIDE_DIRECTION direction, int durationMs, unsigned int moveOptions,
-                         MoveResultInfo *moveResultInfo, bool blocking = true) final;
+    MOVE_RESULT MoveAxis(GUIDE_DIRECTION direction, int durationMs, unsigned int moveOptions, MoveResultInfo *moveResultInfo,
+                         bool blocking = true) final;
     MOVE_RESULT MoveAxis(GUIDE_DIRECTION direction, int duration, unsigned int moveOptions) final;
     int CalibrationMoveSize() override;
     void CheckCalibrationDuration(int currDuration);

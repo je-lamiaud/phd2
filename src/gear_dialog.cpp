@@ -1411,7 +1411,7 @@ void GearDialog::OnButtonSetupScope(wxCommandEvent& event)
     LoadMounts(m_pScopes);
     SetMatchingSelection(m_pScopes, selection);
     // And update the profile, also if scope name changed
-    selection = m_pScopes->GetStringSelection();  // New name after load / setMatching
+    selection = m_pScopes->GetStringSelection(); // New name after load / setMatching
     if (pConfig->Profile.GetString("/scope/LastMenuChoice", wxEmptyString) != selection)
     {
         pConfig->Profile.SetString("/scope/LastMenuChoice", selection);
@@ -1428,7 +1428,7 @@ void GearDialog::OnButtonSetupAuxScope(wxCommandEvent& event)
     LoadAuxMounts(m_pAuxScopes);
     SetMatchingSelection(m_pAuxScopes, selection);
     // And update the profile, also if scope name changed
-    selection = m_pAuxScopes->GetStringSelection();  // New name after load / setMatching
+    selection = m_pAuxScopes->GetStringSelection(); // New name after load / setMatching
     if (pConfig->Profile.GetString("/scope/LastAuxMenuChoice", wxEmptyString) != selection)
     {
         pConfig->Profile.SetString("/scope/LastAuxMenuChoice", selection);

@@ -642,7 +642,7 @@ bool CameraINDI::Connect(const wxString& camId)
                     // If already connected, this will return immediately
                     cam->connectDevice(cam->INDICameraName.mb_str(wxConvUTF8));
 
-                while (!cam->Connected && wxGetUTCTimeMillis() - msec < 30 * 1000) 
+                while (!cam->Connected && wxGetUTCTimeMillis() - msec < 30 * 1000)
                 {
                     if (IsCanceled())
                         break;

@@ -280,8 +280,6 @@ bool SerialPortPosix::Send(const unsigned char *pData, unsigned int count)
 
     try
     {
-//        Debug.AddBytes("SerialPortPosix::Send", pData, count);
-
         size_t rem = count;
         while (rem > 0)
         {

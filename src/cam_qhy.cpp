@@ -577,41 +577,41 @@ bool Camera_QHY::Capture(int duration, usImage& img, int options, const wxRect& 
         DisconnectWithAlert(_("QHY exposure failed"), NO_RECONNECT);
         return true;
     }
-#ifdef debug
+# ifdef debug
     Debug.Write(wxString::Format("QHY exp single frame started\n"));
-#endif
+# endif
 
-#ifdef CAN_STOP_CAPTURE
+# ifdef CAN_STOP_CAPTURE
     if (WorkerThread::InterruptRequested())
     {
         StopCapture(m_camhandle);
         return true;
     }
-#endif
+# endif
     // Wait until the expected exposure end
     WorkerThread::MilliSleep(duration - expWatch.Time(), WorkerThread::INT_ANY);
-#ifdef debug
+# ifdef debug
     Debug.Write(wxString::Format("QHY exp single frame time elapsed\n"));
-#endif
+# endif
 
     // Make sure exposure is really finished
     for (;;)
     {
-#ifdef CAN_STOP_CAPTURE
+# ifdef CAN_STOP_CAPTURE
         if (WorkerThread::InterruptRequested())
         {
             StopCapture(m_camhandle);
             return true;
         }
-#endif
+# endif
         int remaining = GetQHYCCDExposureRemaining(m_camhandle);
         if (remaining <= 100)
             break;
         WorkerThread::MilliSleep(10, WorkerThread::INT_ANY);
     }
-#ifdef debug
+# ifdef debug
     Debug.Write(wxString::Format("QHY exp single frame ready for reading\n"));
-#endif
+# endif
 
     uint32_t w, h, bpp, channels;
     ret = GetQHYCCDSingleFrame(m_camhandle, &w, &h, &bpp, &channels, RawBuffer);
