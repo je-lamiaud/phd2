@@ -991,16 +991,16 @@ bool Camera_QHY::Capture(int duration, usImage& img, int options, const wxRect& 
         }
     }
 
-        ret = SetQHYCCDParam(m_camhandle, CONTROL_EXPOSURE, duration * 1000.0); // QHY duration is usec
-        if (ret == QHYCCD_SUCCESS)
-        {
-            m_curExposure = duration;
-        }
-        else
-        {
-            Debug.Write(wxString::Format("QHY set exposure ret %d\n", (int) ret));
-            pFrame->Alert(_("Failed to set camera exposure"));
-        }
+    ret = SetQHYCCDParam(m_camhandle, CONTROL_EXPOSURE, duration * 1000.0); // QHY duration is usec
+    if (ret == QHYCCD_SUCCESS)
+    {
+        m_curExposure = duration;
+    }
+    else
+    {
+        Debug.Write(wxString::Format("QHY set exposure ret %d\n", (int) ret));
+        pFrame->Alert(_("Failed to set camera exposure"));
+    }
 
     if (GuideCameraGain != m_curGain)
     {
