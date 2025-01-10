@@ -41,7 +41,7 @@
 # include <wx/choicebk.h>
 #endif
 
-const double AdvancedDialog::MIN_FOCAL_LENGTH = 100.0;
+const double AdvancedDialog::MIN_FOCAL_LENGTH = 50.0;
 const double AdvancedDialog::MAX_FOCAL_LENGTH = 10000.0;
 
 // a place to save id of selected panel so we can select the same panel next time the dialog is opened
@@ -592,6 +592,20 @@ double AdvancedDialog::DetermineGuideSpeed()
     }
     return sidRate;
 }
+
+// Floating point equality comparisons can be a problem due to rounding and trivial inequalities.
+// PercentChange can be used to see if a change is worth reacting to
+double AdvancedDialog::PercentChange(double oldVal, double newVal)
+{
+    double chg;
+    if (fabs(oldVal) < 0.0001)
+    {
+        return 100. * newVal; // not meaningful, but avoids divide by zero
+    }
+    else
+        return 100. * fabs(1. - newVal / oldVal);
+}
+
 // Reacts to param changes in the AD that change the image scale.  Calibration step-size is recalculated, calibration is
 // cleared, MinMoves are set to defaults based on new image scale
 void AdvancedDialog::MakeImageScaleAdjustments()
