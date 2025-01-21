@@ -614,7 +614,6 @@ if (NOT OPENSOURCE_ONLY)
     OGMAcamSDK
     GIT_REPOSITORY https://github.com/OGMAvision/OGMAcamSDK.git
     GIT_TAG 5e83d81384479b1684b97e9f6936e453050da4cb
-    GIT_SHALLOW 1
   )
   FetchContent_MakeAvailable(OGMAcamSDK)
   include_directories(${ogmacamsdk_SOURCE_DIR}/inc)
