@@ -502,7 +502,6 @@ else()
     indi
     GIT_REPOSITORY https://github.com/indilib/indi.git
     GIT_TAG 856ac85b965177d23cd0c819a49fd50bdaeece60  # v2.0.5
-    GIT_SHALLOW 1
     CMAKE_ARGS -Wno-dev
       -DINDI_BUILD_SERVER=OFF
       -DINDI_BUILD_DRIVERS=OFF
@@ -644,8 +643,9 @@ if(WIN32)
   list(APPEND PHD_COPY_EXTERNAL_ALL ${PHD_PROJECT_ROOT_DIR}/WinLibs/ASICamera2.dll)
 
   # ToupTek cameras
-  list(APPEND PHD_LINK_EXTERNAL ${PHD_PROJECT_ROOT_DIR}/cameras/toupcam.lib)
-  list(APPEND PHD_COPY_EXTERNAL_ALL ${PHD_PROJECT_ROOT_DIR}/WinLibs/toupcam.dll)
+  list(APPEND PHD_LINK_EXTERNAL ${PHD_PROJECT_ROOT_DIR}/cameras/toupcam/win/x86/toupcam.lib)
+  list(APPEND PHD_COPY_EXTERNAL_ALL ${PHD_PROJECT_ROOT_DIR}/cameras/toupcam/win/x86/toupcam.dll)
+  include_directories(${PHD_PROJECT_ROOT_DIR}/cameras/toupcam/include)
 
   # QHY cameras
   list(APPEND PHD_LINK_EXTERNAL ${PHD_PROJECT_ROOT_DIR}/cameras/qhyccd.lib)
@@ -831,6 +831,7 @@ if(APPLE)
   if(NOT toupcam)
     message(FATAL_ERROR "Cannot find the toupcam drivers")
   endif()
+  include_directories(${PHD_PROJECT_ROOT_DIR}/cameras/toupcam/include)
   list(APPEND PHD_LINK_EXTERNAL ${toupcam})
   add_definitions(-DHAVE_TOUPTEK_CAMERA=1)
   list(APPEND phd2_OSX_FRAMEWORKS ${toupcam})
@@ -955,6 +956,7 @@ if(UNIX AND NOT APPLE)
         message(FATAL_ERROR "Cannot find the toupcam drivers")
       endif()
       message(STATUS "Found toupcam lib ${toupcam}")
+      include_directories(${PHD_PROJECT_ROOT_DIR}/cameras/toupcam/include)
       add_definitions(-DHAVE_TOUPTEK_CAMERA=1)
       list(APPEND PHD_LINK_EXTERNAL ${toupcam})
       list(APPEND PHD_INSTALL_LIBS ${toupcam})
