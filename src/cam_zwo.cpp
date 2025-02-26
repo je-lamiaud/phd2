@@ -72,6 +72,8 @@ class Camera_ZWO : public GuideCamera
     int m_defaultGainPct;
     bool m_isColor;
     double m_devicePixelSize;
+    int m_dir[2];
+    wxDateTime m_guideEnd[2];
 
 public:
     Camera_ZWO();
@@ -84,6 +86,7 @@ public:
     bool Disconnect() override;
 
     bool ST4PulseGuideScope(int direction, int duration) override;
+    void ST4WaitMoveCompletion() override;
 
     void ShowPropertyDialog() override;
     bool HasNonGuiCapture() override { return true; }
@@ -115,6 +118,10 @@ Camera_ZWO::Camera_ZWO() : m_buffer(nullptr)
     m_defaultGainPct = GuideCamera::GetDefaultCameraGain();
     int value = pConfig->Profile.GetInt("/camera/ZWO/bpp", 8);
     m_bpp = value == 8 ? 8 : 16;
+    m_dir[GUIDE_RA] = -1;
+    m_dir[GUIDE_DEC] = -1;
+    m_guideEnd[GUIDE_RA] = wxDateTime::Today();
+    m_guideEnd[GUIDE_DEC] = wxDateTime::Today();
 }
 
 Camera_ZWO::~Camera_ZWO()
@@ -980,12 +987,61 @@ inline static ASI_GUIDE_DIRECTION GetASIDirection(int direction)
 
 bool Camera_ZWO::ST4PulseGuideScope(int direction, int duration)
 {
+    GuideAxis axis;
     ASI_GUIDE_DIRECTION d = GetASIDirection(direction);
+
+    switch (direction)
+    {
+    case NORTH:
+    case SOUTH:
+        axis = GUIDE_DEC;
+        break;
+    case EAST:
+    case WEST:
+        axis = GUIDE_RA;
+        break;
+    default:
+        Debug.Write(wxString::Format("GetASIDirection invalid direction: %d\n", direction));
+        return true;
+    }
+    if (duration > (uint16_t) (-1))
+        duration = (uint16_t) (-1);
+    wxDateTime guideStart = wxDateTime::UNow();
     ASIPulseGuideOn(m_cameraId, d);
-    WorkerThread::MilliSleep(duration, WorkerThread::INT_ANY);
-    ASIPulseGuideOff(m_cameraId, d);
+    m_dir[axis] = direction;
+    m_guideEnd[axis] = guideStart + wxTimeSpan::Milliseconds(duration);
 
     return false;
+}
+
+void Camera_ZWO::ST4WaitMoveCompletion()
+{
+    while (m_dir[GUIDE_RA] != -1 || m_dir[GUIDE_DEC] != -1)
+    {
+        GuideAxis axis;
+
+        if (m_dir[GUIDE_RA] != -1)
+        {
+            if (m_dir[GUIDE_DEC] != -1)
+            {
+                if (m_guideEnd[GUIDE_RA] < m_guideEnd[GUIDE_DEC])
+                    axis = GUIDE_RA;
+                else
+                    axis = GUIDE_DEC;
+            }
+            else
+                axis = GUIDE_RA;
+        }
+        else
+            // While condition implies one axis shall be moving
+            axis = GUIDE_DEC;
+
+        wxTimeSpan duration = m_guideEnd[axis] - wxDateTime::UNow();
+        if (duration.IsPositive())
+            WorkerThread::MilliSleep(duration.GetMilliseconds().GetLo() + 10);
+        ASIPulseGuideOff(m_cameraId, GetASIDirection(m_dir[axis]));
+        m_dir[axis] = -1;
+    }
 }
 
 GuideCamera *ZWOCameraFactory::MakeZWOCamera()
