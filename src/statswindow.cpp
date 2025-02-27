@@ -151,6 +151,10 @@ StatsWindow::StatsWindow(wxWindow *parent)
     sizer2->Add(m_grid2, wxSizerFlags(0).Border(wxALL, 10));
 
     SetSizerAndFit(sizer2);
+
+    // Workaround to avoid grey rectangle on the image at startup when statistics are not displayed
+    m_grid1->Show(false);
+    m_grid2->Show(false);
 }
 
 StatsWindow::~StatsWindow(void) { }
@@ -160,6 +164,8 @@ void StatsWindow::SetState(bool is_active)
     m_visible = is_active;
     if (m_visible)
     {
+        m_grid1->Show(true);
+        m_grid2->Show(true);
         UpdateStats();
         UpdateCooler();
     }
