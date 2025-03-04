@@ -7044,6 +7044,10 @@ msgstr "Vérification des mises à jour"
 msgid "PHD2 Update Available"
 msgstr "Mise à jour de PHD2 disponible"
 
+#: phdupdate.cpp:783
+msgid "This is the original PHD2, you will loose the features of the Garage Lamiaud's fork if you install it"
+msgstr "Il s'agit du PHD2 original, vous perdrez les fonctionnalités de la variante du Garage Lamiaud si vous l'installez"
+
 #: phdupdate.cpp:784
 msgid "Web Site"
 msgstr "Site Web"

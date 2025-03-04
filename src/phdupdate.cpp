@@ -45,10 +45,10 @@
 
 #if defined(__WXMSW__)
 # define OSNAME _T("win")
-# define DefaultEnableUpdate true
+# define DefaultEnableUpdate false
 #elif defined(__APPLE__)
 # define OSNAME _T("osx")
-# define DefaultEnableUpdate true
+# define DefaultEnableUpdate false
 #else
 # define OSNAME _T("linux")
 # define DefaultEnableUpdate false
@@ -76,6 +76,7 @@ struct UpdaterDialog : public wxDialog
     Updater *m_updater;
     Mode m_mode;
     wxTextCtrl *m_text;
+    wxTextCtrl *m_warning;
     wxButton *m_goButton;
     wxButton *m_cancelButton;
     wxHtmlWindow *m_html;
@@ -778,6 +779,21 @@ UpdaterDialog::UpdaterDialog(Updater *updater, Mode mode, Interactive interactiv
     m_text->SetFont(fnt);
     m_text->SetMinClientSize(m_text->GetTextExtent(text) + wxSize(16, 0));
     sz1->Add(m_text, 0, wxALL | wxEXPAND, 5);
+
+    const wxString warning_str =
+        _("This is the original PHD2, you will loose the features of the Garage Lamiaud's fork if you install it");
+    m_warning =
+        new wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY | wxNO_BORDER | wxTE_MULTILINE);
+    m_warning->SetDefaultStyle(wxTextAttr(*wxRED));
+    m_warning->SetValue(warning_str);
+    wxFont wfnt = m_warning->GetFont();
+    wfnt.SetWeight(wxFONTWEIGHT_BOLD);
+    m_warning->SetFont(fnt);
+    wxSize sz = m_warning->GetTextExtent(warning_str);
+    sz.SetWidth(16);
+    sz.SetHeight(sz.GetHeight() * 2);
+    m_warning->SetMinClientSize(sz);
+    sz1->Add(m_warning, 0, wxALL | wxEXPAND, 5);
 
     wxBoxSizer *sz2 = new wxBoxSizer(wxHORIZONTAL);
 
