@@ -198,8 +198,6 @@ AboutDialog::AboutDialog()
                                                 "</tr>"
                                                 "<tr>"
                                                 "<td>Ethan Chappel</td>"
-                                                "</tr>"
-                                                "<tr>"
                                                 "<td>Brian Valente</td>"
                                                 "</tr>"
                                                 "</table><br>"
