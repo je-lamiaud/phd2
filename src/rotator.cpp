@@ -133,6 +133,14 @@ Rotator::Rotator() : m_connected(false)
 
 Rotator::~Rotator() { }
 
+// ConnectRotator is the one place where we call rotator->Connect(). Any work done here
+// applies to all rotator types, regardless of how the various rotator sub-classes
+// implement Connect().
+bool Rotator::ConnectRotator(Rotator *rotator)
+{
+    return rotator->Connect();
+}
+
 bool Rotator::Connect()
 {
     m_connected = true;
@@ -185,6 +193,9 @@ RotatorConfigDialogCtrlSet::RotatorConfigDialogCtrlSet(wxWindow *pParent, Rotato
 {
     m_rotator = pRotator;
     m_cbReverse = new wxCheckBox(GetParentWindow(AD_cbRotatorReverse), wxID_ANY, _("Reverse sign of angle"));
+    m_cbReverse->SetToolTip(_("For compatability purposes, PHD2 can internally reverse the sign of the "
+                              "position angle reported by the rotator. This only affects calculations "
+                              "within PHD2, it has no effect on the rotator operation."));
     AddCtrl(CtrlMap, AD_cbRotatorReverse, m_cbReverse);
 }
 

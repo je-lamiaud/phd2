@@ -195,6 +195,7 @@ Guider::Guider(wxWindow *parent, int xSize, int ySize)
     SetOverlaySlitCoords(center, size, angle);
 
     m_defectMapPreview = 0;
+    m_userMultiStarMode = GetMultiStarMode();
 
     m_polarAlignCircleRadius = 0.0;
     m_polarAlignCircleCorrection = 1.0;
@@ -851,10 +852,6 @@ bool Guider::MoveLockPosition(const PHD_Point& mountDeltaArg)
         }
 
         const usImage *image = CurrentImage();
-        if (!image)
-        {
-            throw ERROR_INFO("cannot move lock pos without an image");
-        }
 
         // This loop is to handle dithers when the star is near the edge of the frame. The strategy
         // is to try reflecting the requested dither in 4 directions along the RA/Dec axes; if any
@@ -1592,7 +1589,15 @@ void Guider::EnableLockPosShift(bool enable)
         m_lockPosShift.shiftEnabled = enable;
         if (enable)
         {
+            m_userMultiStarMode = GetMultiStarMode();
+            SetMultiStarMode(false);
+            Debug.Write("Multi-star mode disabled for comet tracking\n");
             m_lockPosition.BeginShift();
+        }
+        else
+        {
+            SetMultiStarMode(m_userMultiStarMode);
+            Debug.Write("Comet tracking disabled, user's multi-star mode restored\n");
         }
         if (m_state == STATE_CALIBRATED || m_state == STATE_GUIDING)
         {

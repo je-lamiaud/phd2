@@ -78,6 +78,7 @@ Scope::Scope()
     m_limitReachedDeferralTime = wxDateTime::GetTimeNow();
     m_graphControlPane = nullptr;
     m_CalDetailsValidated = false;
+    m_canSetTracking = false;
 
     wxString prefix = "/" + GetMountClassName();
     int calibrationDuration = pConfig->Profile.GetInt(prefix + "/CalibrationDuration", DefaultCalibrationDuration);
@@ -121,6 +122,17 @@ Scope::~Scope()
     {
         m_graphControlPane->m_pScope = nullptr;
     }
+}
+
+// ConnectScope is the one place where we call scope->Connect(). Any work done here
+// applies to all mount types, regardless of how the various mount sub-classes implement
+// Connect().
+bool Scope::ConnectScope(Scope *scope)
+{
+    bool err = scope->Connect();
+    if (!err)
+        scope->m_supportedTrackingRates = scope->EnumerateTrackingRates();
+    return err;
 }
 
 GUIDE_ALGORITHM Scope::DefaultXGuideAlgorithm() const
@@ -375,6 +387,9 @@ wxArrayString Scope::MountList()
 #ifdef GUIDE_INDI
     ScopeList.Add(INDIMountName());
 #endif
+#ifdef ALPACA_MOUNT
+    ScopeList.Add(_T("Alpaca Mount (Experimental)"));
+#endif
 
     ScopeList.Sort(&CompareNoCase);
 
@@ -395,6 +410,9 @@ wxArrayString Scope::AuxMountList()
 
 #ifdef GUIDE_INDI
     scopeList.Add(INDIMountName());
+#endif
+#ifdef ALPACA_MOUNT
+    scopeList.Add(_T("Alpaca Mount (Experimental)"));
 #endif
 
     scopeList.Add(ScopeManualPointing::GetDisplayName());
@@ -426,6 +444,10 @@ Scope *Scope::Factory(const wxString& choice)
 #ifdef GUIDE_INDI
         else if (choice.Contains(_("INDI")))
             pReturn = INDIScopeFactory::MakeINDIScope(choice);
+#endif
+#ifdef ALPACA_MOUNT
+        else if (choice.Contains(_T("Alpaca Mount")))
+            pReturn = AlpacaScopeFactory::MakeAlpacaScope();
 #endif
         else if (choice == _("None"))
             pReturn = nullptr;
@@ -1008,14 +1030,16 @@ void Scope::CheckCalibrationDuration(int currDuration)
     CalibrationDetails calDetails;
     LoadCalibrationDetails(&calDetails);
 
-    bool binningChange = pCamera->Binning != calDetails.origBinning;
+    auto binning = pCamera->GetBinning();
+    bool binningChange = binning != calDetails.origBinning;
 
     // if binning changed, may need to update the calibration distance
     if (binningChange)
     {
         int prevDistance = GetCalibrationDistance();
-        int newDistance =
-            CalstepDialog::GetCalibrationDistance(pFrame->GetFocalLength(), pCamera->GetCameraPixelSize(), pCamera->Binning);
+        auto focalLength = pFrame->GetFocalLength();
+        auto pixelSize = pCamera->GetCameraPixelSize();
+        int newDistance = CalstepDialog::GetCalibrationDistance(focalLength, pixelSize, binning);
 
         if (newDistance != prevDistance)
         {
@@ -1043,9 +1067,11 @@ void Scope::CheckCalibrationDuration(int currDuration)
     if (!refineStepSize)
         return;
 
+    auto focalLength = pFrame->GetFocalLength();
+    auto pixelSize = pCamera->GetCameraPixelSize();
     int rslt;
-    CalstepDialog::GetCalibrationStepSize(pFrame->GetFocalLength(), pCamera->GetCameraPixelSize(), pCamera->Binning, currSpdX,
-                                          CalstepDialog::DEFAULT_STEPS, 0.0, GetCalibrationDistance(), 0, &rslt);
+    CalstepDialog::GetCalibrationStepSize(focalLength, pixelSize, binning, currSpdX, CalstepDialog::DEFAULT_STEPS, 0.0,
+                                          GetCalibrationDistance(), 0, &rslt);
 
     wxString why = binningChange ? " binning " : " mount guide speed ";
     Debug.Write(wxString::Format("CalDuration adjusted at start of calibration from %d to %d because of %s change\n",
@@ -1099,7 +1125,7 @@ void Scope::SetCalibration(const Calibration& cal)
     Mount::SetCalibration(cal);
 }
 
-void Scope::SetCalibrationDetails(const CalibrationDetails& calDetails, double xAngle, double yAngle, double binning)
+void Scope::SetCalibrationDetails(const CalibrationDetails& calDetails, double xAngle, double yAngle, int binning)
 {
     m_calibrationDetails = calDetails;
 
@@ -1763,11 +1789,11 @@ bool Scope::UpdateCalibrationState(const PHD_Point& currentLocation)
             cal.declination = pPointingSource->GetDeclinationRadians();
             cal.pierSide = pPointingSource->SideOfPier();
             cal.rotatorAngle = Rotator::RotatorPosition();
-            cal.binning = pCamera->Binning;
+            cal.binning = pCamera->GetBinning();
             SetCalibration(cal);
             m_calibrationDetails.raStepCount = m_raSteps;
             m_calibrationDetails.decStepCount = m_decSteps;
-            SetCalibrationDetails(m_calibrationDetails, m_calibration.xAngle, m_calibration.yAngle, pCamera->Binning);
+            SetCalibrationDetails(m_calibrationDetails, m_calibration.xAngle, m_calibration.yAngle, m_calibration.binning);
             if (SANITY_CHECKING_ACTIVE)
                 SanityCheckCalibration(m_prevCalibration, m_prevCalibrationDetails); // method gets "new" info itself
             pFrame->StatusMsg(_("Calibration complete"));
@@ -1799,6 +1825,40 @@ double Scope::GetDeclinationRadians()
 
 // Baseline implementations for non-ASCOM subclasses.  Methods will
 // return a sensible default or an error (true)
+
+std::vector<Scope::TrackingRateInfo> Scope::EnumerateTrackingRates()
+{
+    std::vector<Scope::TrackingRateInfo> rates;
+    rates.push_back({ _("Sidereal"), TrackingRate::rateSidereal });
+    return rates;
+}
+
+bool Scope::GetTracking(bool *tracking)
+{
+    return true; // error
+}
+
+bool Scope::SetTracking(bool tracking)
+{
+    return true; // error
+}
+
+bool Scope::CanSetTracking()
+{
+    return false;
+}
+
+bool Scope::GetTrackingRate(TrackingRateInfo *rateInfo)
+{
+    *rateInfo = m_supportedTrackingRates.front(); // sidereal
+    return false;
+}
+
+bool Scope::SetTrackingRate(TrackingRate rate)
+{
+    return true; // error
+}
+
 bool Scope::GetGuideRates(double *pRAGuideRate, double *pDecGuideRate)
 {
     return true; // error, not implemented
@@ -1892,6 +1952,11 @@ bool Scope::ValidGuideRates(double RAGuideRate, double DecGuideRate)
     }
     else
         return true;
+}
+
+const std::vector<Scope::TrackingRateInfo>& Scope::GetSupportedTrackingRates()
+{
+    return m_supportedTrackingRates;
 }
 
 static wxString GuideSpeedSummary()

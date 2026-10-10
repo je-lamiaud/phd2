@@ -70,11 +70,37 @@ endif()
 if(WIN32)
   include(FetchContent)
   set(FETCHCONTENT_QUIET OFF)
+
+  # cygwin's git checks out some executables without execute
+  # permission which prevents vcpkg's bootstrap from running them. The
+  # workaround is to use the chmod.exe in the same cygwin directory as
+  # the git executable to fix the permissions.
+  #
+  find_package(Git REQUIRED)
+  get_filename_component(GIT_BIN_DIR "${GIT_EXECUTABLE}" DIRECTORY)
+  set(VCPKG_GIT_CHMOD_EXECUTABLE)
+  foreach(CHMOD_NAME chmod.exe chmod)
+    if(EXISTS "${GIT_BIN_DIR}/${CHMOD_NAME}")
+      set(VCPKG_GIT_CHMOD_EXECUTABLE "${GIT_BIN_DIR}/${CHMOD_NAME}")
+      break()
+    endif()
+  endforeach()
+  set(VCPKG_FIX_EXECUTABLE_PERMISSIONS)
+  if(VCPKG_GIT_CHMOD_EXECUTABLE)
+    message(STATUS "Using ${VCPKG_GIT_CHMOD_EXECUTABLE} to set vcpkg helper permissions")
+    set(VCPKG_FIX_EXECUTABLE_PERMISSIONS
+      "${VCPKG_GIT_CHMOD_EXECUTABLE}" 755
+      scripts/tls12-download.exe
+      scripts/tls12-download-arm64.exe
+      COMMAND
+    )
+  endif()
+
   FetchContent_Declare(
     vcpkg
     GIT_REPOSITORY https://github.com/microsoft/vcpkg.git
-    GIT_TAG f7423ee180c4b7f40d43402c2feb3859161ef625
-    UPDATE_COMMAND bootstrap-vcpkg.bat -disableMetrics
+    GIT_TAG 84bab45d415d22042bd0b9081aea57f362da3f35  # 2025.12.12
+    UPDATE_COMMAND ${VCPKG_FIX_EXECUTABLE_PERMISSIONS} bootstrap-vcpkg.bat -disableMetrics
     COMMAND ${CMAKE_COMMAND} -E echo "Building vcpkg cfitsio"
     COMMAND vcpkg install --binarysource=default --no-print-usage cfitsio:${WINDOWS_ARCH}-windows
     COMMAND ${CMAKE_COMMAND} -E echo "Building vcpkg curl[ssl]"
@@ -92,7 +118,7 @@ if(WIN32)
   set(VCPKG_DEBUG_LIB ${VCPKG_PREFIX}/debug/lib)
   set(VCPKG_RELEASE_LIB ${VCPKG_PREFIX}/lib)
   set(VCPKG_INCLUDE ${VCPKG_PREFIX}/include)
-  include_directories(${VCPKG_INCLUDE})
+  include_directories(${VCPKG_INCLUDE} ${VCPKG_INCLUDE}/opencv4)
 endif()
 
 if(APPLE)
@@ -514,7 +540,7 @@ else()
   ExternalProject_Add(
     indi
     GIT_REPOSITORY https://github.com/indilib/indi.git
-    GIT_TAG cce992ebced4d73ee6d482cb894c5c897bb059b7  # v2.1.5
+    GIT_TAG 6aa360543313c9e00819148da9df15647ffa7996  # v2.1.6
     CMAKE_ARGS -Wno-dev
       -DINDI_BUILD_SERVER=OFF
       -DINDI_BUILD_DRIVERS=OFF
@@ -602,6 +628,8 @@ if(WIN32)
       ${VCPKG_DEBUG_BIN}/liblzma.dll
       ${VCPKG_DEBUG_BIN}/libwebp.dll
       ${VCPKG_DEBUG_BIN}/libwebpdecoder.dll
+      ${VCPKG_DEBUG_BIN}/libwebpdemux.dll
+      ${VCPKG_DEBUG_BIN}/libwebpmux.dll
       ${VCPKG_DEBUG_BIN}/libsharpyuv.dll
   )
   list(APPEND PHD_COPY_EXTERNAL_REL
@@ -616,6 +644,8 @@ if(WIN32)
       ${VCPKG_RELEASE_BIN}/liblzma.dll
       ${VCPKG_RELEASE_BIN}/libwebp.dll
       ${VCPKG_RELEASE_BIN}/libwebpdecoder.dll
+      ${VCPKG_RELEASE_BIN}/libwebpdemux.dll
+      ${VCPKG_RELEASE_BIN}/libwebpmux.dll
       ${VCPKG_RELEASE_BIN}/libsharpyuv.dll
   )
 endif()
@@ -722,7 +752,13 @@ if(WIN32)
    add_definitions(-DHAVE_ALTAIR_CAMERA=1)
    include_directories(${PHD_PROJECT_ROOT_DIR}/cameras/altair/include)
    list(APPEND PHD_COPY_EXTERNAL_ALL ${PHD_PROJECT_ROOT_DIR}/cameras/altair/win/${WINDOWS_ARCH}/altaircam.dll)
-   list(APPEND PHD_COPY_EXTERNAL_ALL ${PHD_PROJECT_ROOT_DIR}/cameras/altair/win/${WINDOWS_ARCH}/AltairCam_legacy.dll)
+   if(EXISTS ${PHD_PROJECT_ROOT_DIR}/cameras/altair/win/${WINDOWS_ARCH}/AltairCam_legacy.dll)
+     list(APPEND PHD_COPY_EXTERNAL_ALL ${PHD_PROJECT_ROOT_DIR}/cameras/altair/win/${WINDOWS_ARCH}/AltairCam_legacy.dll)
+   else()
+     if(WINDOWS_ARCH STREQUAL "x86")
+       message(FATAL_ERROR "Cannot find the Altair Legacy SDK")
+     endif()
+   endif()
   endif()
 
   # SBIGUDrv

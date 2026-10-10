@@ -1130,7 +1130,7 @@ bool GearDialog::DoConnectCamera(bool autoReconnecting)
 
         Debug.Write(wxString::Format("Connecting to camera [%s] id = [%s]\n", newCam, cameraId));
 
-        int profileBinning = m_pCamera->Binning;
+        int profileBinning = m_pCamera->GetBinning();
         if (GuideCamera::ConnectCamera(m_pCamera, cameraId))
         {
             throw THROW_INFO("DoConnectCamera: connect failed");
@@ -1201,9 +1201,11 @@ bool GearDialog::DoConnectCamera(bool autoReconnecting)
             m_pCamera->SetCameraGain(defaultGain);
         }
 
-        // See if the profile was created with a binning level that isn't supported by the camera (user mistake) - if so, reset
-        // binning to 1 Must be done here because orig binning level is not saved
-        if (profileBinning > m_pCamera->MaxBinning)
+        // See if the profile was created with a binning level that isn't supported by
+        // the camera (user mistake) - if so, reset binning to 1. Must be done here
+        // because orig binning level is not saved
+        auto choices = m_pCamera->GetBinningChoices();
+        if (choices.find(profileBinning) == choices.end())
         {
             int rslt;
             if (TheScope())
@@ -1211,7 +1213,7 @@ bool GearDialog::DoConnectCamera(bool autoReconnecting)
                 rslt = TheScope()->GetCalibrationDuration() / profileBinning;
                 TheScope()->SetCalibrationDuration(rslt);
             }
-            m_pCamera->SetBinning(1);
+            m_pCamera->SetBinning(1, 1);
             Debug.Write(wxString::Format("CamConfigDlg correcting bogus user binning value from %d to 1\n", profileBinning));
         }
 
@@ -1221,7 +1223,8 @@ bool GearDialog::DoConnectCamera(bool autoReconnecting)
         m_cameraUpdated = true;
 
         Debug.AddLine("Connected Camera: " + m_pCamera->Name);
-        Debug.Write(wxString::Format("FrameSize=(%d,%d)\n", m_pCamera->FrameSize.x, m_pCamera->FrameSize.y));
+        auto frameSize = m_pCamera->GetFrameSize();
+        Debug.Write(wxString::Format("FrameSize=(%d,%d)\n", frameSize.x, frameSize.y));
         Debug.Write(wxString::Format("PixelSize=%.2f\n", m_pCamera->GetCameraPixelSize()));
         Debug.Write(wxString::Format("BitsPerPixel=%u\n", m_pCamera->BitsPerPixel()));
         Debug.Write(wxString::Format("HasGainControl=%d\n", m_pCamera->HasGainControl));
@@ -1455,12 +1458,12 @@ void GearDialog::OnButtonConnectScope(wxCommandEvent& event)
 
             Debug.Write(wxString::Format("Connecting to mount [%s]\n", m_pScopes->GetStringSelection()));
 
-            if (m_pScope->Connect())
+            if (Scope::ConnectScope(m_pScope))
             {
                 throw THROW_INFO("OnButtonConnectScope: connect failed");
             }
 
-            if (m_pScope && m_ascomScopeSelected && !m_pScope->CanPulseGuide())
+            if (m_ascomScopeSelected && !m_pScope->CanPulseGuide())
             {
                 m_pScope->Disconnect();
                 wxMessageBox(wxString::Format(_("Mount does not support the required PulseGuide interface"), _("Error")));
@@ -1506,7 +1509,7 @@ void GearDialog::OnButtonConnectAuxScope(wxCommandEvent& event)
 
             Debug.Write(wxString::Format("Connecting to aux mount [%s]\n", m_pAuxScopes->GetStringSelection()));
 
-            if (m_pAuxScope->Connect())
+            if (Scope::ConnectScope(m_pAuxScope))
             {
                 throw THROW_INFO("OnButtonConnectAuxScope: connect failed");
             }
@@ -1673,7 +1676,7 @@ void GearDialog::OnButtonConnectStepGuider(wxCommandEvent& event)
 
             Debug.Write(wxString::Format("Connecting to AO [%s]\n", m_pStepGuiders->GetStringSelection()));
 
-            if (m_pStepGuider->Connect())
+            if (StepGuider::ConnectStepGuider(m_pStepGuider))
             {
                 throw THROW_INFO("OnButtonConnectStepGuider: connect failed");
             }
@@ -1811,7 +1814,7 @@ void GearDialog::OnButtonConnectRotator(wxCommandEvent& event)
 
             Debug.Write(wxString::Format("Connecting to rotator [%s]\n", m_pRotators->GetStringSelection()));
 
-            if (m_pRotator->Connect())
+            if (Rotator::ConnectRotator(m_pRotator))
             {
                 throw THROW_INFO("OnButtonConnectRotator: connect failed");
             }
@@ -2244,7 +2247,7 @@ void GearDialog::OnProfileRename(wxCommandEvent& event)
 
     if (pConfig->GetProfileId(newname) > 0)
     {
-        wxMessageBox(_(wxString::Format("Cannot not rename profile to %s, there is already a profile with that name", newname)),
+        wxMessageBox(wxString::Format(_("Cannot not rename profile to %s, there is already a profile with that name"), newname),
                      _("Error"));
         return;
     }

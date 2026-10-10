@@ -76,7 +76,7 @@ const wxString& Logger::GetLogDir()
 
         if (pConfig)
         {
-            rslt = pConfig->Global.GetString("/frame/LogDir", wxEmptyString);
+            rslt = pConfig->Global.GetString("/frame/logdir", wxEmptyString);
             if (rslt.empty())
                 rslt = DefaultDir(); // user has never even looked at it
             else if (!wxDirExists(rslt)) // user might have deleted our old directories
@@ -188,9 +188,14 @@ void Logger::RemoveOldDirectories(const wxString& filePattern, int DaysOld)
                 bool more = dir.GetFirst(&subdir, filePattern, wxDIR_DIRS);
                 while (more)
                 {
-                    wxString rslt = subdir.AfterFirst('_');
-                    if (rslt < oldestDateStr)
-                        dirTargets.Add(subdir);
+                    // folder name example: PHD2_CameraFrames_2026-05-06-142018
+                    int start = subdir.Find("CameraFrames_");
+                    if (start != wxNOT_FOUND)
+                    {
+                        wxString rslt = subdir.Mid(start + 13);
+                        if (rslt < oldestDateStr)
+                            dirTargets.Add(subdir);
+                    }
                     more = dir.GetNext(&subdir);
                 }
                 dir.Close();

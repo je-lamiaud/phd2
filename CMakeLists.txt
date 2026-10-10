@@ -122,6 +122,7 @@ enable_testing()
 #
 # external libraries
 # to be changed in add_subdirectory
+include(cmake_modules/FindNova.cmake)
 include(thirdparty/thirdparty.cmake)
 
 
@@ -167,6 +168,8 @@ if(KWIQGuider_PLATFORM_SRC)
 endif()
 
 set(cam_SRC
+  ${phd_src_dir}/cam_alpaca.cpp
+  ${phd_src_dir}/cam_alpaca.h
   ${phd_src_dir}/cam_altair.cpp
   ${phd_src_dir}/cam_altair.h
   ${phd_src_dir}/cam_ascom.cpp
@@ -270,6 +273,8 @@ set(scopes_SRC
   ${phd_src_dir}/mount.h
   ${phd_src_dir}/scope.cpp
   ${phd_src_dir}/scope.h
+  ${phd_src_dir}/scope_alpaca.cpp
+  ${phd_src_dir}/scope_alpaca.h
   ${phd_src_dir}/scope_ascom.cpp
   ${phd_src_dir}/scope_ascom.h
   ${phd_src_dir}/scope_eqmac.cpp
@@ -344,6 +349,10 @@ set(phd2_SRC
   ${phd_src_dir}/about_dialog.h
   ${phd_src_dir}/advanced_dialog.cpp
   ${phd_src_dir}/advanced_dialog.h
+  ${phd_src_dir}/alpaca_client.cpp
+  ${phd_src_dir}/alpaca_client.h
+  ${phd_src_dir}/alpaca_config.cpp
+  ${phd_src_dir}/alpaca_config.h
   ${phd_src_dir}/aui_controls.cpp
   ${phd_src_dir}/aui_controls.h
 
@@ -852,6 +861,8 @@ if(APPLE)
   target_compile_options(phd2 PRIVATE "-Wno-inconsistent-missing-override")
 endif()
 target_include_directories(phd2 PRIVATE ${wxWidgets_INCLUDE_DIRS})
+STRING(REPLACE "/libnova" "" NOVA_INCLUDE_DIRECTIVE "${NOVA_INCLUDE_DIR}")
+target_include_directories(phd2 PRIVATE ${NOVA_INCLUDE_DIRECTIVE})
 
 foreach(lib ${PHD_LINK_EXTERNAL_DEBUG})
   target_link_libraries(phd2 debug ${lib})

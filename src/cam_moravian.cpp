@@ -335,7 +335,6 @@ class MoravianCamera : public GuideCamera
     bool m_canGuide;
     int m_maxGain;
     int m_defaultGainPct;
-    bool m_isColor;
     double m_devicePixelSize;
     int m_maxMoveMs;
 
@@ -345,7 +344,7 @@ public:
 
     bool CanSelectCamera() const override { return true; }
     bool EnumCameras(wxArrayString& names, wxArrayString& ids) override;
-    bool Capture(int duration, usImage& img, int options, const wxRect& subframe) override;
+    bool Capture(usImage& img, const CaptureParams& captureParams) override;
     bool Connect(const wxString& camId) override;
     bool Disconnect() override;
 
@@ -524,7 +523,7 @@ void MoravianCameraDlg::LoadCamInfo()
 
     if (m_modes.empty())
     {
-        m_modeNames->AppendString(_("... connect a camera first to get read modes ..."));
+        m_modeNames->AppendString(_("[camera does not support read modes]"));
         return;
     }
 
@@ -658,8 +657,8 @@ bool MoravianCamera::Connect(const wxString& camId)
     bool rgb = m_cam.BoolParam(gbpRGB);
     bool cmy = m_cam.BoolParam(gbpCMY);
     bool cmyg = m_cam.BoolParam(gbpCMYG);
-    m_isColor = rgb || cmy || cmyg;
-    Debug.Write(wxString::Format("MVN: IsColorCam = %d  (rgb:%d cmy:%d cmyg:%d)\n", m_isColor, rgb, cmy, cmyg));
+    HasBayer = rgb || cmy || cmyg;
+    Debug.Write(wxString::Format("MVN: IsColorCam = %d  (rgb:%d cmy:%d cmyg:%d)\n", HasBayer, rgb, cmy, cmyg));
 
     int pxwidth = m_cam.IntParam(gipPixelW); // nm
     int pxheight = m_cam.IntParam(gipPixelD); // nm
@@ -668,18 +667,18 @@ bool MoravianCamera::Connect(const wxString& camId)
     int maxbinx = m_cam.IntParam(gipMaxBinningX);
     int maxbiny = m_cam.IntParam(gipMaxBinningY);
 
-    MaxBinning = std::min(maxbinx, maxbiny);
+    MaxHwBinning = std::min(maxbinx, maxbiny);
 
-    if (Binning > MaxBinning)
-        Binning = MaxBinning;
+    if (HwBinning > MaxHwBinning)
+        HwBinning = MaxHwBinning;
 
     m_maxSize = m_cam.ChipSize();
 
-    FrameSize.x = m_maxSize.x / Binning;
-    FrameSize.y = m_maxSize.y / Binning;
-    m_curBinning = Binning;
+    FrameSize.x = m_maxSize.x / HwBinning;
+    FrameSize.y = m_maxSize.y / HwBinning;
+    m_curBinning = HwBinning;
 
-    if (!m_cam.SetBinning(Binning))
+    if (!m_cam.SetBinning(HwBinning))
     {
         wxString err = m_cam.LastError();
         Disconnect();
@@ -715,16 +714,23 @@ bool MoravianCamera::Connect(const wxString& camId)
     }
     m_curGain = new_gain;
 
-    unsigned int read_mode = pConfig->Profile.GetInt("/camera/moravian/read_mode", dflt_read_mode);
-    wxString mode_name;
-    if (!m_cam.GetReadMode(&mode_name, read_mode))
-        mode_name = "unknown";
-    Debug.Write(wxString::Format("MVN: setting read mode %u (%s) bpp = %u\n", read_mode, mode_name, m_bpp));
-    if (!m_cam.SetReadMode(read_mode))
+    if (has_read_modes)
     {
-        wxString err = m_cam.LastError();
-        Disconnect();
-        return CamConnectFailed(err);
+        int read_mode = pConfig->Profile.GetInt("/camera/moravian/read_mode", dflt_read_mode);
+        if (read_mode == -1)
+            read_mode = dflt_read_mode;
+        wxString mode_name;
+        if (!m_cam.GetReadMode(&mode_name, read_mode))
+            mode_name = "unknown";
+        Debug.Write(wxString::Format("MVN: setting read mode %d (%s) bpp = %u\n", read_mode, mode_name, m_bpp));
+        // Moravian says to ignore failure to set the read mode. This is
+        // necessary for certain camera models that incorrectly report
+        // having read modes, but do not allow the read mode to be set.
+        m_cam.SetReadMode(read_mode);
+    }
+    else
+    {
+        Debug.Write("MVN: camera does not support read modes, skip setting read mode.\n");
     }
 
     Connected = true;
@@ -786,8 +792,12 @@ bool MoravianCamera::GetSensorTemperature(double *temperature)
     return false;
 }
 
-bool MoravianCamera::Capture(int duration, usImage& img, int options, const wxRect& subframe)
+bool MoravianCamera::Capture(usImage& img, const CaptureParams& captureParams)
 {
+    int duration = captureParams.duration;
+    int options = captureParams.captureOptions;
+    const wxRect& subframe = captureParams.subframe;
+
     unsigned int new_gain = cam_gain(0, m_maxGain, GuideCameraGain);
     if (new_gain != m_curGain)
     {
@@ -797,17 +807,17 @@ bool MoravianCamera::Capture(int duration, usImage& img, int options, const wxRe
         m_curGain = new_gain;
     }
 
-    if (Binning != m_curBinning)
+    if (HwBinning != m_curBinning)
     {
-        if (!m_cam.SetBinning(Binning))
+        if (!m_cam.SetBinning(HwBinning))
         {
-            Debug.Write(wxString::Format("MVN: SetBinning(%u): %s\n", Binning, m_cam.LastError()));
+            Debug.Write(wxString::Format("MVN: SetBinning(%u): %s\n", HwBinning, m_cam.LastError()));
             return true;
         }
-        Debug.Write(wxString::Format("MVN: SetBinning(%u): ok\n", Binning));
-        FrameSize.x = m_maxSize.x / Binning;
-        FrameSize.y = m_maxSize.y / Binning;
-        m_curBinning = Binning;
+        Debug.Write(wxString::Format("MVN: SetBinning(%u): ok\n", HwBinning));
+        FrameSize.x = m_maxSize.x / HwBinning;
+        FrameSize.y = m_maxSize.y / HwBinning;
+        m_curBinning = HwBinning;
     }
 
     if (img.Init(FrameSize))
@@ -917,7 +927,7 @@ bool MoravianCamera::Capture(int duration, usImage& img, int options, const wxRe
 
     if (options & CAPTURE_SUBTRACT_DARK)
         SubtractDark(img);
-    if (m_isColor && Binning == 1 && (options & CAPTURE_RECON))
+    if ((options & CAPTURE_RECON) && HasBayer && captureParams.CombinedBinning() == 1)
         QuickLRecon(img);
 
     return false;

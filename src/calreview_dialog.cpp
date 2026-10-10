@@ -339,7 +339,7 @@ void CalReviewDialog::CreateDataGrids(wxPanel *parentPanel, wxSizer *parentHSize
         if (validDetails)
         {
             wxString binning =
-                wxString::Format(_("Binning: %d"), (int) calDetails.origBinning); // Always binning used in actual calibration
+                wxString::Format(_("Binning: %d"), calDetails.origBinning); // Always binning used in actual calibration
             cfgGrid->SetCellValue(row, col++, wxString::Format("%0.2f %s\n%s", calDetails.imageScale, ARCSECPERPX, binning));
         }
         else
@@ -348,7 +348,7 @@ void CalReviewDialog::CreateDataGrids(wxPanel *parentPanel, wxSizer *parentHSize
         wxString sPierSide = calBaseline.pierSide == PIER_SIDE_EAST ? _("East")
             : calBaseline.pierSide == PIER_SIDE_WEST                ? _("West")
                                                                     : NA_STR;
-        cfgGrid->SetCellValue(row, col++, _(sPierSide));
+        cfgGrid->SetCellValue(row, col++, sPierSide);
 
         row++;
         col = 0;
