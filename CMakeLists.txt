@@ -655,16 +655,16 @@ if(APPLE)
   if(asiCamera2)
     set_source_files_properties(${asiCamera2} PROPERTIES MACOSX_PACKAGE_LOCATION Frameworks)
     # there's got to be a better way, but damfino. This works though.
-    add_custom_command(
-      TARGET phd2
-      POST_BUILD
-      COMMAND install_name_tool -change @loader_path/libASICamera2.dylib
-                   @executable_path/../Frameworks/libASICamera2.dylib $<TARGET_FILE:phd2>
-      COMMAND install_name_tool -change @loader_path/libusb-1.0.0.dylib
-                   @executable_path/../Frameworks/libusb_openphd.dylib
-                   $<TARGET_FILE_DIR:phd2>/../Frameworks/libASICamera2.dylib
-      COMMENT "Updating dylib path for libASICamera2.dylib"
-    )
+#    add_custom_command(
+#      TARGET phd2
+#      POST_BUILD
+#      COMMAND install_name_tool -change @loader_path/libASICamera2.dylib
+#                   @executable_path/../Frameworks/libASICamera2.dylib $<TARGET_FILE:phd2>
+#      COMMAND install_name_tool -change @loader_path/libusb-1.0.0.dylib
+#                   @executable_path/../Frameworks/libusb_openphd.dylib
+#                   $<TARGET_FILE_DIR:phd2>/../Frameworks/libASICamera2.dylib
+#      COMMENT "Updating dylib path for libASICamera2.dylib"
+#    )
   endif()
 
   if(qhylib)
