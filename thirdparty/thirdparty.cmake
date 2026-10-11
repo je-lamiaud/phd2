@@ -479,7 +479,7 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
                   OUTPUT_VARIABLE wxWidgets_LIBRARIES
                   OUTPUT_STRIP_TRAILING_WHITESPACE)
   separate_arguments(${wxWidgets_LIBRARIES})
-  execute_process(COMMAND ${wxWidgets_CONFIG_EXECUTABLE} --cflags ${wxRwxRequiredLibs}
+  execute_process(COMMAND ${wxWidgets_CONFIG_EXECUTABLE} --cflags ${wxRequiredLibs}
                   OUTPUT_VARIABLE wxWidgets_CXXFLAGS
                   OUTPUT_STRIP_TRAILING_WHITESPACE)
   separate_arguments(wxWidgets_CXX_FLAGS UNIX_COMMAND "${wxWidgets_CXXFLAGS}")
@@ -537,10 +537,12 @@ if(USE_SYSTEM_LIBINDI)
 else()
   include(ExternalProject)
   set(indi_INSTALL_DIR ${CMAKE_BINARY_DIR}/libindi)
+  STRING(REPLACE ";" "|" INDI_ARCHS "${CMAKE_OSX_ARCHITECTURES}")
   ExternalProject_Add(
     indi
     GIT_REPOSITORY https://github.com/indilib/indi.git
     GIT_TAG 6aa360543313c9e00819148da9df15647ffa7996  # v2.1.6
+    LIST_SEPARATOR |
     CMAKE_ARGS -Wno-dev
       -DINDI_BUILD_SERVER=OFF
       -DINDI_BUILD_DRIVERS=OFF
@@ -550,7 +552,7 @@ else()
       -DCMAKE_PREFIX_PATH=${VCPKG_PREFIX}
       -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/libindi
       -DCMAKE_CXX_FLAGS=-D_CRT_SECURE_NO_WARNINGS
-      -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES}
+      -DCMAKE_OSX_ARCHITECTURES:STRING=${INDI_ARCHS}
   )
   include_directories(${indi_INSTALL_DIR}/include)
   if (WIN32)

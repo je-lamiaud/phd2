@@ -17,10 +17,11 @@ os=$(IFS=. read -r a b _ < <(sysctl -n kern.osproductversion); printf "%03d" "$a
 sonoma=014000
 cmake_extra_args=()
 if [[ $os > $sonoma || $os == $sonoma ]]; then
+    APPLE_ARCH="x86_64;arm64"
     cmake_extra_args+=(-DCMAKE_OSX_DEPLOYMENT_TARGET=14.0)
+else
+    APPLE_ARCH="x86_64"
 fi
-
-APPLE_ARCH=x86_64
 
 WXWIN=$(wx-config --prefix)
 [[ -d $WXWIN ]] || {
