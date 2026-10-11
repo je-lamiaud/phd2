@@ -34,7 +34,7 @@
 /**
  * Type define for IMG1E */
 #define DEVICETYPE_IMG1E        1006
-
+#define DEVICETYPE_FX3G2 1007
 
 /* QHY5 seires */
 
@@ -485,6 +485,14 @@
 
 #define DEVICETYPE_QHY992ARRAY			   4165
 #define DEVICETYPE_QHY1253ARRAY		       4166
+#define DEVICETYPE_QHY26800A		       4167
+#define DEVICETYPE_QHY6060ProBSI           4168
+
+#define DEVICETYPE_QHY26800AGUIDE          4169
+
+#define DEVICETYPE_QHY811C                 4170
+#define DEVICETYPE_QHY992DEEP_COOLING      4171
+
 /**
  * Type define for QHY5IIIEND*/
 #define DEVICETYPE_QHY5IIIEND   	4999
@@ -1081,6 +1089,8 @@
  * Type define for QHY-DevelopDev*/
 #define QHY5IIICOMMON_MAX_WIDTH      19776//14304//6280//5336//4144//3864//5680//2712//3864// 2712// 1408    //8432  	
 #define QHY5IIICOMMON_MAX_HEIGHT     13124//10748//4210//4908//3064//2192//3710//1538//2180// 1538// 1052    //5648	  
+#define QHYFXNCOMMON_MAX_WIDTH      19776
+#define QHYFXNCOMMON_MAX_HEIGHT     13124
 
 /**
  * Type define for QHY247*/
@@ -1217,8 +1227,8 @@
 #define QHY461_MAX_WIDTH		   11760
 #define QHY461_MAX_HEIGHT		   8842
 
-#define QHY268C_MAX_WIDTH        6288
-#define QHY268C_MAX_HEIGHT       4210
+//#define QHY26800A_MAX_WIDTH        6288
+//#define QHY26800A_MAX_HEIGHT       4210
 
 //#define QHY410C_MAX_WIDTH        6112
 //#define QHY410C_MAX_HEIGHT       4140-100
@@ -1418,7 +1428,15 @@
 #define QHY50GX_MAX_WIDTH        	8400
 #define QHY50GX_MAX_HEIGHT        	6220
 
+#define QHY26800A_MAX_WIDTH        	6280
+#define QHY26800A_MAX_HEIGHT        4210
 
+#define QHY26800AGUIDE_MAX_WIDTH  1920
+#define QHY26800AGUIDE_MAX_HEIGHT 1080
+
+/**
+ * Type define for QHY_DEMO (simulated camera for testing) */
+#define DEVICETYPE_QHY_DEMO     9999
 
 /**
  * Type define for UNKNOW */
@@ -1430,7 +1448,7 @@
 
 #define		MAX_CAMERA_NUMBER		200
 #define		CAMERA_ID_LENGTH		64   //(CAMERA_ID_LENGTH and ID_STR_LEN) more like a full ID length: QHY178-xxxxx(Mode included)
-#define   	MAXDEVICES 				15
+#define   	MAXDEVICES 				16
 
 
 #define		MAX_READMODE_NAME			256
@@ -1562,20 +1580,22 @@
 #define CAM_CONN_STATUS_TO_PC         2
 #define CAM_CONN_STATUS_TO_SDK        3
 
-enum TYPEMODEL
+enum BOARDMODEL
 {
 	PH_MODEL = 0,
 	PRO_MODEL
 };
 
-enum OEMMODEL
+enum TYPEMODEL
 {
 	STD_MODEL = 0,
 	QHY411MERIS_ARRAYMASTER,
 	QHY411MERIS_ARRAYSLAVE,
 	QHY600M_CCM,
 	QHY600M_61M,//WHJC
-	QHY600M_DBC
+	QHY600M_DBC,
+	QHY1253_ARRAYMASTER,
+	QHY1253_ARRAYSLAVE
 };
 
 #endif
