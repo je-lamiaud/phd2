@@ -141,7 +141,7 @@
 #   define QHY_CAMERA
 #  endif
 #  ifdef HAVE_SBIG_CAMERA
-#   if !defined(__arm64__)  // To be removed when SBIG releases a new SDK for Apple Silicon
+#   if !defined(__arm64__) // To be removed when SBIG releases a new SDK for Apple Silicon
 #    define SBIG
 #   endif
 #  endif
