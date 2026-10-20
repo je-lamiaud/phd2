@@ -141,7 +141,9 @@
 #   define QHY_CAMERA
 #  endif
 #  ifdef HAVE_SBIG_CAMERA
-#   define SBIG
+#   if !defined(__arm64__)  // To be removed when SBIG releases a new SDK for Apple Silicon
+#    define SBIG
+#   endif
 #  endif
 #  define SIMULATOR
 #  ifdef HAVE_SXV_CAMERA
@@ -154,7 +156,9 @@
 #   define ZWO_ASI
 #  endif
 #  ifdef HAVE_SVB_CAMERA
-#   define SVB_CAMERA
+#   if !defined(__arm64__) // To be removed when cam SVB is updated with latest SDK
+#    define SVB_CAMERA
+#   endif
 #  endif
 
 # elif defined(__linux__) || defined(__FreeBSD__)

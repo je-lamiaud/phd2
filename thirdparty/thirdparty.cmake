@@ -1043,7 +1043,7 @@ if(APPLE)
   find_library( ogmacam
                 NAMES ogmacam
                 NO_DEFAULT_PATH
-                PATHS ${ogmacamsdk_SOURCE_DIR}/mac/x64+x86)
+                PATHS ${ogmacamsdk_SOURCE_DIR}/mac/x64+arm64)
   if(NOT ogmacam)
     message(FATAL_ERROR "Cannot find the ogmacam drivers")
   endif()

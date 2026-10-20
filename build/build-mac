@@ -16,7 +16,7 @@ check_library_dependencies () (
     grep_output=$(
         otool -L PHD2.app/Contents/MacOS/PHD2 | \
         grep -v \
-             -e 'PHD2:$' \
+             -e 'PHD2.*:$' \
              -e '@executable_path/\.\./Frameworks/' \
              -e '/usr/lib/.*\.dylib' \
              -e /System/Library/Frameworks/ \
