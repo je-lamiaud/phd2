@@ -218,7 +218,7 @@ AboutDialog::AboutDialog()
                                                 "Copyright 2014-2017 Max Planck Society<br>"
                                                 "Copyright 2017 Ken Self<br>"
                                                 "Copyright 2019 Jasem Mutlaq<br>"
-                                                "Copyright 2023-2025 Jean-Etienne Lamiaud<br>"
+                                                "Copyright 2023-2026 Jean-Etienne Lamiaud<br>"
                                                 "<br>"
                                                 "<br>"
                                                 "The Predictive PEC guide algorithm is based on<br>"
